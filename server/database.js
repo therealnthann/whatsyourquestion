@@ -23,7 +23,8 @@ async function initializeDatabase() {
       content TEXT NOT NULL,
       reply_to_message_id BIGINT REFERENCES messages(id) ON DELETE SET NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      edited_at TIMESTAMPTZ
+      edited_at TIMESTAMPTZ,
+      deleted_at TIMESTAMPTZ
     );
 
     CREATE TABLE IF NOT EXISTS reactions (
@@ -59,6 +60,45 @@ async function initializeDatabase() {
   await pool.query(`
     ALTER TABLE users
     ALTER COLUMN username DROP NOT NULL;
+  `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS users_username_lower_idx
+      ON users (LOWER(username));
+  `);
+
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'messages'
+          AND column_name = 'deleted_at'
+      ) THEN
+        ALTER TABLE messages
+        ADD COLUMN deleted_at TIMESTAMPTZ;
+      END IF;
+    END $$;
+  `);
+
+  // Older databases may have a conversation_id column from a multi-chat
+  // schema. This app has one shared chat and does not assign conversation IDs.
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'messages'
+          AND column_name = 'conversation_id'
+      ) THEN
+        ALTER TABLE messages
+        ALTER COLUMN conversation_id DROP NOT NULL;
+      END IF;
+    END $$;
   `);
 
   console.log("Database initialized.");

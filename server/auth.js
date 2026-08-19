@@ -12,6 +12,19 @@ async function createAccessCode(accessCode) {
     throw new Error("Access code must be at least 8 characters.");
   }
 
+  const existingUsers = await pool.query(
+    `
+      SELECT access_code_hash
+      FROM users
+    `,
+  );
+
+  for (const user of existingUsers.rows) {
+    if (await argon2.verify(user.access_code_hash, accessCode)) {
+      throw new Error("That access code is already in use.");
+    }
+  }
+
   const hash = await argon2.hash(accessCode);
 
   const result = await pool.query(
@@ -91,15 +104,25 @@ async function setUsername(userId, username) {
     throw new Error("That username is already taken.");
   }
 
-  const result = await pool.query(
-    `
-      UPDATE users
-      SET username = $1
-      WHERE id = $2
-      RETURNING id, username
-    `,
-    [normalizedUsername, userId]
-  );
+  let result;
+
+  try {
+    result = await pool.query(
+      `
+        UPDATE users
+        SET username = $1
+        WHERE id = $2
+        RETURNING id, username
+      `,
+      [normalizedUsername, userId]
+    );
+  } catch (error) {
+    if (error.code === "23505") {
+      throw new Error("That username is already taken.");
+    }
+
+    throw error;
+  }
 
   if (result.rows.length === 0) {
     throw new Error("User not found.");

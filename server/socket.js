@@ -84,6 +84,26 @@ function allowEvent(socket, eventName, limit, windowMs) {
 function setupSocket(io, pool) {
   const onlineUsers = new Map();
 
+  function updateSocketUser(userId, username) {
+    for (const socket of io.sockets.sockets.values()) {
+      if (Number(socket.user?.id) === Number(userId)) {
+        socket.user.username = username;
+      }
+    }
+
+    const onlineUser = onlineUsers.get(userId);
+
+    if (onlineUser) {
+      onlineUser.username = username;
+      onlineUsers.set(userId, onlineUser);
+    }
+
+    io.emit("user:renamed", {
+      id: userId,
+      username,
+    });
+  }
+
   io.use(async (socket, next) => {
     try {
       const session = socket.request.session;
@@ -633,6 +653,8 @@ function setupSocket(io, pool) {
       );
     });
   });
+
+  return updateSocketUser;
 }
 
 module.exports = setupSocket;

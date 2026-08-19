@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node server/server.js",
     "dev": "nodemon server/server.js",
+    "setup:users": "node server/setup-users.js",
     "seed:messages": "node server/seed-messages.js"
   },
   "keywords": [],

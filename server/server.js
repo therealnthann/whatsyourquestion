@@ -153,6 +153,10 @@ app.post("/api/setup-username", accountLimiter, async (req, res) => {
 
     res.json({
       success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+      },
       username: user.username,
     });
   } catch (error) {
@@ -201,6 +205,8 @@ app.post("/api/change-username", accountLimiter, async (req, res) => {
       username
     );
 
+    updateSocketUser(user.id, user.username);
+
     res.json({
       success: true,
       user: {
@@ -237,6 +243,7 @@ app.get("/api/me", async (req, res) => {
       `,
       [req.session.userId]
     );
+
 
     if (result.rows.length === 0) {
       req.session.destroy(() => {});
@@ -548,7 +555,7 @@ app.use((error, req, res, next) => {
   res.status(500).json({ error: "Something went wrong." });
 });
 
-setupSocket(io, pool);
+updateSocketUser = setupSocket(io, pool);
 
 async function startServer() {
   try {

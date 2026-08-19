@@ -1140,6 +1140,16 @@ async function initializeChat() {
     typingIndicator.classList.add("hidden");
   });
 
+  socket.on("user:renamed", (user) => {
+    onlineUsers.set(Number(user.id), user);
+
+    if (Number(user.id) === Number(currentUser.id)) {
+      currentUser.username = user.username;
+    }
+
+    updateOnlineStatus();
+  });
+
   socket.on("chat:history", (messages) => {
     messagesContainer.innerHTML = "";
 

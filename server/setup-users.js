@@ -17,48 +17,42 @@ async function setup() {
   try {
     await initializeDatabase();
 
-    const existingUsers = await pool.query(
-      "SELECT COUNT(*)::int AS count FROM users"
-    );
-
-    if (existingUsers.rows[0].count > 0) {
-      console.log(
-        "Users already exist. No new access codes were created."
-      );
-
-      rl.close();
-      await pool.end();
-      return;
-    }
-
-    console.log("\nWhat's Your Question - Initial Setup\n");
-    console.log("Create the two access codes for your chat.\n");
+    console.log("\nWhat's Your Question - Add Users\n");
     console.log("Access codes must be at least 8 characters.\n");
 
-    const code1 = await ask("Access code #1: ");
-    const code2 = await ask("Access code #2: ");
+    let createdCount = 0;
+    const accessCodes = new Set();
 
-    if (code1.length < 8 || code2.length < 8) {
-      throw new Error(
-        "Both access codes must be at least 8 characters."
+    while (true) {
+      const accessCode = await ask(
+        `Access code #${createdCount + 1} (leave blank to finish): `
       );
+
+      if (!accessCode) {
+        break;
+      }
+
+      if (accessCode.length < 8) {
+        throw new Error("Access codes must be at least 8 characters.");
+      }
+
+      if (accessCodes.has(accessCode)) {
+        throw new Error("Each access code must be different.");
+      }
+
+      await createAccessCode(accessCode);
+      accessCodes.add(accessCode);
+      createdCount += 1;
+      console.log("Access code created.");
     }
 
-    if (code1 === code2) {
-      throw new Error(
-        "The two access codes must be different."
-      );
-    }
-
-    await createAccessCode(code1);
-    await createAccessCode(code2);
-
-    console.log("\nTwo access codes created successfully.");
+    console.log(`\nCreated ${createdCount} access code(s).`);
     console.log(
       "The usernames will be chosen the first time each code is used."
     );
   } catch (error) {
     console.error("\nSetup failed:", error.message);
+    process.exitCode = 1;
   } finally {
     rl.close();
     await pool.end();

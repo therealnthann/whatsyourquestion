@@ -147,6 +147,10 @@ usernameForm.addEventListener("submit", async (event) => {
 
     usernameInput.value = "";
 
+    if (window.updateSettingsUser) {
+      window.updateSettingsUser(data.user);
+    }
+
     showScreen(chatScreen);
   } catch (error) {
     console.error(
