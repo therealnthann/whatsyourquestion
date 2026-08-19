@@ -349,6 +349,14 @@ app.post("/api/conversations/:id/members", async (req, res) => {
     return res.status(409).json({ error: "User is already a member or conversation is invalid." });
   }
 
+  const connectedSockets = await io.fetchSockets();
+
+  for (const connectedSocket of connectedSockets) {
+    if (Number(connectedSocket.user?.id) === userId) {
+      await connectedSocket.join(`conversation:${access.conversationId}`);
+    }
+  }
+
   res.status(201).json({ member: membership });
 });
 
@@ -363,6 +371,14 @@ app.delete("/api/conversations/:id/members/me", async (req, res) => {
 
   if (!removed) {
     return res.status(400).json({ error: "You cannot leave General." });
+  }
+
+  const connectedSockets = await io.fetchSockets();
+
+  for (const connectedSocket of connectedSockets) {
+    if (Number(connectedSocket.user?.id) === Number(access.userId)) {
+      connectedSocket.leave(`conversation:${access.conversationId}`);
+    }
   }
 
   await deleteConversationIfEmpty(pool, access.conversationId);
