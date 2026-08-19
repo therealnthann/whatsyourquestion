@@ -76,7 +76,6 @@ app.post("/api/login", async (req, res) => {
     });
   } catch (error) {
     console.error("Login error:", error);
-s
     res.status(500).json({
       error: "Something went wrong.",
     });
