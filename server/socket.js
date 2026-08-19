@@ -11,11 +11,18 @@ async function getUser(pool, userId) {
   return result.rows[0] || null;
 }
 
-async function getRecentMessages(pool, limit = 100) {
+const {
+  parseConversationId,
+  isConversationMember,
+  getConversationMessages,
+} = require("./conversations");
+
+async function getRecentMessages(pool, conversationId, limit = 100) {
   const result = await pool.query(
     `
       SELECT
         m.id,
+        m.conversation_id,
         m.content,
         m.reply_to_message_id,
         m.created_at,
@@ -38,23 +45,27 @@ async function getRecentMessages(pool, limit = 100) {
       LEFT JOIN users reply_user
         ON reply_user.id = reply.user_id
 
+      WHERE m.conversation_id = $1
+
       ORDER BY m.created_at DESC
 
-      LIMIT $1
+      LIMIT $2
     `,
-    [limit]
+    [conversationId, limit]
   );
 
   return result.rows.reverse();
 }
 
-async function getMessageCount(pool) {
+async function getMessageCount(pool, conversationId) {
   const result = await pool.query(
     `
     SELECT COUNT(*)::integer AS count 
     FROM messages
     WHERE deleted_at IS NULL
-    `
+      AND conversation_id = $1
+    `,
+    [conversationId]
   );
 
   return result.rows[0].count;
@@ -79,6 +90,10 @@ function allowEvent(socket, eventName, limit, windowMs) {
   socket.eventTimes.set(eventName, recent);
 
   return true;
+}
+
+function conversationRoom(conversationId) {
+  return `conversation:${conversationId}`;
 }
 
 function setupSocket(io, pool) {
@@ -142,30 +157,54 @@ function setupSocket(io, pool) {
       });
     }
 
-    /*
-     * Load recent messages.
-     */
-    try {
-      const messages = await getRecentMessages(pool);
+    const memberConversations = await pool.query(
+      `SELECT conversation_id FROM conversation_members WHERE user_id = $1`,
+      [userId],
+    );
 
-      socket.emit("chat:history", messages);
-
-      /*
-       * Also send the lifetime message count.
-       */
-      const messageCount =
-        await getMessageCount(pool);
-
-      socket.emit(
-        "messages:count",
-        messageCount
-      );
-    } catch (error) {
-      console.error(
-        "Failed to load chat data:",
-        error
-      );
+    for (const row of memberConversations.rows) {
+      await socket.join(conversationRoom(row.conversation_id));
     }
+
+    socket.on("conversation:join", async (value, acknowledge) => {
+      const conversationId = parseConversationId(
+        typeof value === "object" ? value?.conversationId : value,
+      );
+
+      if (!conversationId) {
+        acknowledge?.({ error: "Invalid conversation ID." });
+        return;
+      }
+
+      if (!(await isConversationMember(pool, conversationId, userId))) {
+        acknowledge?.({ error: "You are not a member of this conversation." });
+        return;
+      }
+
+      await socket.join(conversationRoom(conversationId));
+
+      try {
+        const messages = await getRecentMessages(pool, conversationId);
+        const messageCount = await getMessageCount(pool, conversationId);
+
+        socket.emit("chat:history", { conversationId, messages });
+        socket.emit("messages:count", { conversationId, count: messageCount });
+        acknowledge?.({ success: true, conversationId });
+      } catch (error) {
+        console.error("Failed to load conversation data:", error);
+        acknowledge?.({ error: "Could not load conversation." });
+      }
+    });
+
+    socket.on("conversation:leave", (value) => {
+      const conversationId = parseConversationId(
+        typeof value === "object" ? value?.conversationId : value,
+      );
+
+      if (conversationId) {
+        socket.leave(conversationRoom(conversationId));
+      }
+    });
 
     /*
      * Send a message.
@@ -178,6 +217,13 @@ function setupSocket(io, pool) {
       });
       return;
       }
+
+        const conversationId = parseConversationId(data?.conversationId);
+
+        if (!conversationId || !(await isConversationMember(pool, conversationId, socket.user.id))) {
+        socket.emit("chat:error", { error: "You are not a member of this conversation." });
+        return;
+        }
 
         if (
         !data ||
@@ -229,8 +275,9 @@ function setupSocket(io, pool) {
                 FROM messages
                 WHERE id = $1
                 AND deleted_at IS NULL
+                AND conversation_id = $2
             `,
-            [replyTo]
+              [replyTo, conversationId]
             );
 
         if (replyCheck.rowCount === 0) {
@@ -247,14 +294,16 @@ function setupSocket(io, pool) {
             INSERT INTO messages
                 (
                 user_id,
+                conversation_id,
                 content,
                 reply_to_message_id
                 )
             VALUES
-                ($1, $2, $3)
+              ($1, $2, $3, $4)
 
             RETURNING
                 id,
+                conversation_id,
                 content,
                 reply_to_message_id,
                 created_at,
@@ -263,6 +312,7 @@ function setupSocket(io, pool) {
             `,
             [
             socket.user.id,
+            conversationId,
             content,
             replyTo,
             ]
@@ -318,7 +368,7 @@ function setupSocket(io, pool) {
         * Send the new message to everyone
         * connected to the chat.
         */
-        io.emit(
+        io.to(conversationRoom(conversationId)).emit(
         "chat:message",
         message
         );
@@ -331,14 +381,14 @@ function setupSocket(io, pool) {
         * Get the current visible message count.
         */
         const messageCount =
-        await getMessageCount(pool);
+        await getMessageCount(pool, conversationId);
 
         /*
         * Update the counter for everyone.
         */
-        io.emit(
+        io.to(conversationRoom(conversationId)).emit(
         "messages:count",
-        messageCount
+        { conversationId, count: messageCount }
         );
 
     } catch (error) {
@@ -406,9 +456,16 @@ function setupSocket(io, pool) {
             id = $2
             AND user_id = $3
             AND deleted_at IS NULL
+            AND EXISTS (
+              SELECT 1
+              FROM conversation_members
+              WHERE conversation_id = messages.conversation_id
+                AND user_id = $3
+            )
 
             RETURNING
             id,
+            conversation_id,
             content,
             reply_to_message_id,
             created_at,
@@ -469,7 +526,7 @@ function setupSocket(io, pool) {
         }
         }
 
-        io.emit("chat:edited", {
+        io.to(conversationRoom(updatedMessage.conversation_id)).emit("chat:edited", {
         ...updatedMessage,
 
         user_id: socket.user.id,
@@ -528,9 +585,16 @@ function setupSocket(io, pool) {
             id = $1
             AND user_id = $2
             AND deleted_at IS NULL
+            AND EXISTS (
+              SELECT 1
+              FROM conversation_members
+              WHERE conversation_id = messages.conversation_id
+                AND user_id = $2
+            )
 
             RETURNING
             id,
+            conversation_id,
             reply_to_message_id,
             created_at,
             edited_at,
@@ -549,7 +613,7 @@ function setupSocket(io, pool) {
         /*
         * Tell everyone that the message was deleted.
         */
-        io.emit("chat:deleted", {
+        io.to(conversationRoom(result.rows[0].conversation_id)).emit("chat:deleted", {
         id: result.rows[0].id,
         user_id: socket.user.id,
         deleted_at:
@@ -560,14 +624,14 @@ function setupSocket(io, pool) {
         * Recalculate the visible message count.
         */
         const messageCount =
-        await getMessageCount(pool);
+        await getMessageCount(pool, result.rows[0].conversation_id);
 
         /*
         * Update the counter for everyone immediately.
         */
-        io.emit(
+        io.to(conversationRoom(result.rows[0].conversation_id)).emit(
         "messages:count",
-        messageCount
+        { conversationId: result.rows[0].conversation_id, count: messageCount }
         );
 
     } catch (error) {
@@ -581,19 +645,35 @@ function setupSocket(io, pool) {
     /*
      * Typing indicator.
      */
-    socket.on("typing:start", () => {
+    socket.on("typing:start", async (value) => {
       if (!allowEvent(socket, "typing:start", 30, 10 * 1000)) {
         return;
       }
 
-      socket.broadcast.emit("user:typing", {
+      const conversationId = parseConversationId(
+        typeof value === "object" ? value?.conversationId : value,
+      );
+
+      if (!conversationId || !(await isConversationMember(pool, conversationId, socket.user.id))) {
+        return;
+      }
+
+      socket.to(conversationRoom(conversationId)).emit("user:typing", {
         id: socket.user.id,
         username: socket.user.username,
       });
     });
 
-    socket.on("typing:stop", () => {
-      socket.broadcast.emit(
+    socket.on("typing:stop", (value) => {
+      const conversationId = parseConversationId(
+        typeof value === "object" ? value?.conversationId : value,
+      );
+
+      if (!conversationId) {
+        return;
+      }
+
+      socket.to(conversationRoom(conversationId)).emit(
         "user:stopped-typing",
         {
           id: socket.user.id,

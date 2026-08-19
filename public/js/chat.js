@@ -95,11 +95,34 @@ const messageSearchPrevious = document.getElementById(
 
 const messageSearchNext = document.getElementById("message-search-next");
 
+const conversationList = document.getElementById("conversation-list");
+const conversationTitle = document.getElementById("conversation-title");
+const newConversationButton = document.getElementById("new-conversation-button");
+const newConversationOverlay = document.getElementById("new-conversation-overlay");
+const newConversationClose = document.getElementById("new-conversation-close");
+const newConversationCancel = document.getElementById("new-conversation-cancel");
+const newConversationCreate = document.getElementById("new-conversation-create");
+const conversationUserSearch = document.getElementById("conversation-user-search");
+const conversationUserList = document.getElementById("conversation-user-list");
+const conversationName = document.getElementById("conversation-name");
+const conversationCreateError = document.getElementById("conversation-create-error");
+const conversationMembersButton = document.getElementById("conversation-members-button");
+const conversationMembersOverlay = document.getElementById("conversation-members-overlay");
+const conversationMembersClose = document.getElementById("conversation-members-close");
+const conversationMembersList = document.getElementById("conversation-members-list");
+const conversationLeave = document.getElementById("conversation-leave");
+
 let searchResults = [];
 let currentSearchResult = -1;
 
 let searchTimeout = null;
 let searchRequestId = 0;
+
+let currentConversationId = null;
+let conversations = [];
+let conversationUnreadCounts = new Map();
+let selectedConversationUsers = new Set();
+let conversationDialogMode = "create";
 
 const BOTTOM_THRESHOLD_PX = 100;
 
@@ -127,6 +150,300 @@ const originalTitle = document.title;
 const onlineUsers = new Map();
 
 let messagePendingDelete = null;
+
+function getConversation(conversationId) {
+  return conversations.find(
+    (conversation) => Number(conversation.id) === Number(conversationId),
+  );
+}
+
+function getConversationName(conversation) {
+  return conversation?.name || "Conversation";
+}
+
+function renderConversations() {
+  conversationList.innerHTML = "";
+
+  conversations.sort((left, right) => {
+    const leftIsGeneral = getConversationName(left) === "General";
+    const rightIsGeneral = getConversationName(right) === "General";
+
+    if (leftIsGeneral !== rightIsGeneral) {
+      return leftIsGeneral ? -1 : 1;
+    }
+
+    return new Date(right.latest_message_created_at || right.created_at) -
+      new Date(left.latest_message_created_at || left.created_at);
+  });
+
+  for (const conversation of conversations) {
+    const item = document.createElement("button");
+    const unreadCount = Number(conversation.unread_count || 0);
+
+    item.type = "button";
+    item.className = "conversation-item";
+    item.classList.toggle(
+      "selected",
+      Number(conversation.id) === Number(currentConversationId),
+    );
+
+    const name = document.createElement("span");
+    name.className = "conversation-item-name";
+    name.textContent = getConversationName(conversation);
+    item.appendChild(name);
+
+    if (unreadCount > 0) {
+      const unread = document.createElement("span");
+      unread.className = "conversation-unread";
+      unread.textContent = unreadCount > 99 ? "99+" : unreadCount;
+      item.appendChild(unread);
+    }
+
+    item.addEventListener("click", () => openConversation(conversation.id));
+    conversationList.appendChild(item);
+  }
+}
+
+async function loadConversations() {
+  const response = await fetch("/api/conversations");
+
+  if (!response.ok) {
+    throw new Error("Could not load conversations.");
+  }
+
+  const data = await response.json();
+  conversations = data.conversations || [];
+
+  for (const conversation of conversations) {
+    conversationUnreadCounts.set(
+      Number(conversation.id),
+      Number(conversation.unread_count || 0),
+    );
+  }
+
+  renderConversations();
+
+  const selected = getConversation(currentConversationId) || conversations[0];
+
+  if (selected) {
+    await openConversation(selected.id);
+  }
+}
+
+async function openConversation(conversationId) {
+  const conversation = getConversation(conversationId);
+
+  if (!conversation || !socket) {
+    return;
+  }
+
+  currentConversationId = Number(conversation.id);
+  conversationUnreadCounts.set(currentConversationId, 0);
+  conversation.unread_count = 0;
+  conversationTitle.textContent = getConversationName(conversation);
+  messageSearchInput.value = "";
+  searchResults = [];
+  currentSearchResult = -1;
+  messageSearchCount.textContent = "";
+  updateSearchClearButton();
+  updateSearchNavigationState();
+  messagesContainer.innerHTML = "";
+  renderConversations();
+
+  socket.emit("conversation:join", { conversationId: currentConversationId }, (result) => {
+    if (result?.error) {
+      console.error(result.error);
+    }
+  });
+}
+
+async function loadConversationMessages(conversationId) {
+  const response = await fetch(`/api/conversations/${conversationId}/messages`);
+
+  if (!response.ok) {
+    throw new Error("Could not load conversation messages.");
+  }
+
+  const data = await response.json();
+  messagesContainer.innerHTML = "";
+
+  for (const message of data.messages || []) {
+    addMessage(message, false);
+  }
+
+  scrollToBottom();
+}
+
+async function loadConversationUsers(query = "") {
+  const response = await fetch(`/api/users?q=${encodeURIComponent(query)}`);
+
+  if (!response.ok) {
+    return;
+  }
+
+  const data = await response.json();
+  conversationUserList.innerHTML = "";
+
+  for (const user of data.users || []) {
+    const label = document.createElement("label");
+    label.className = "conversation-user-option";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = user.id;
+    checkbox.checked = selectedConversationUsers.has(Number(user.id));
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) {
+        selectedConversationUsers.add(Number(user.id));
+      } else {
+        selectedConversationUsers.delete(Number(user.id));
+      }
+    });
+
+    const name = document.createElement("span");
+    name.textContent = user.username;
+
+    label.appendChild(checkbox);
+    label.appendChild(name);
+    conversationUserList.appendChild(label);
+  }
+}
+
+function openNewConversation() {
+  conversationDialogMode = "create";
+  selectedConversationUsers = new Set();
+  conversationName.value = "";
+  conversationCreateError.textContent = "";
+  newConversationOverlay.classList.remove("hidden");
+  newConversationOverlay.setAttribute("aria-hidden", "false");
+  loadConversationUsers();
+  conversationUserSearch.focus();
+}
+
+function addConversationMembers() {
+  if (!currentConversationId) {
+    return;
+  }
+
+  conversationDialogMode = "add";
+  selectedConversationUsers = new Set();
+  conversationName.value = "";
+  conversationName.classList.add("hidden");
+  conversationCreateError.textContent = "";
+  document.getElementById("new-conversation-title").textContent = "Add People";
+  newConversationCreate.textContent = "Add";
+  newConversationOverlay.classList.remove("hidden");
+  newConversationOverlay.setAttribute("aria-hidden", "false");
+  loadConversationUsers();
+  conversationUserSearch.focus();
+}
+
+function closeNewConversation() {
+  newConversationOverlay.classList.add("hidden");
+  newConversationOverlay.setAttribute("aria-hidden", "true");
+  conversationName.classList.remove("hidden");
+  document.getElementById("new-conversation-title").textContent = "New Chat";
+  newConversationCreate.textContent = "Create";
+}
+
+async function createConversation() {
+  const memberIds = [...selectedConversationUsers];
+
+  if (memberIds.length === 0) {
+    conversationCreateError.textContent = "Select at least one person.";
+    return;
+  }
+
+  if (conversationDialogMode === "add") {
+    for (const userId of memberIds) {
+      const response = await fetch(`/api/conversations/${currentConversationId}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        conversationCreateError.textContent = data.error || "Could not add member.";
+        return;
+      }
+    }
+
+    closeNewConversation();
+    await loadConversations();
+    return;
+  }
+
+  if (memberIds.length > 1 && !conversationName.value.trim()) {
+    conversationCreateError.textContent = "Add a name for the group chat.";
+    return;
+  }
+
+  const response = await fetch("/api/conversations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      memberIds,
+      name: conversationName.value.trim(),
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    conversationCreateError.textContent = data.error || "Could not create chat.";
+    return;
+  }
+
+  closeNewConversation();
+  await loadConversations();
+  await openConversation(data.conversation.id);
+}
+
+async function showConversationMembers() {
+  if (!currentConversationId) {
+    return;
+  }
+
+  const response = await fetch(`/api/conversations/${currentConversationId}/members`);
+  const data = await response.json();
+
+  if (!response.ok) {
+    return;
+  }
+
+  conversationMembersList.innerHTML = "";
+
+  for (const member of data.members || []) {
+    const item = document.createElement("div");
+    item.className = "conversation-user-option";
+
+    const status = document.createElement("span");
+    status.className = "status-dot";
+    status.classList.toggle("online", onlineUsers.has(Number(member.id)));
+
+    const name = document.createElement("span");
+    name.textContent = `${member.username} - ${onlineUsers.has(Number(member.id)) ? "Online" : "Offline"}`;
+
+    item.appendChild(status);
+    item.appendChild(name);
+    conversationMembersList.appendChild(item);
+  }
+
+  const conversation = getConversation(currentConversationId);
+  const isGeneral = getConversationName(conversation) === "General";
+  const isGroup = Boolean(conversation?.is_group);
+  document.getElementById("conversation-add-members").classList.toggle("hidden", !isGroup);
+  conversationLeave.classList.toggle("hidden", isGeneral);
+  conversationMembersOverlay.classList.remove("hidden");
+  conversationMembersOverlay.setAttribute("aria-hidden", "false");
+  conversationMembersClose.focus();
+}
+
+function closeConversationMembers() {
+  conversationMembersOverlay.classList.add("hidden");
+  conversationMembersOverlay.setAttribute("aria-hidden", "true");
+}
 
 async function loadCurrentUser() {
   const response = await fetch("/api/me");
@@ -820,6 +1137,8 @@ async function searchServerMessages(query) {
 
     messageSearchCount.textContent = "";
 
+    updateSearchNavigationState();
+
     return;
   }
 
@@ -828,7 +1147,7 @@ async function searchServerMessages(query) {
 
     try {
       const response = await fetch(
-        `/api/messages/search?q=${encodeURIComponent(trimmedQuery)}`,
+        `/api/messages/search?conversationId=${currentConversationId}&q=${encodeURIComponent(trimmedQuery)}`,
       );
 
       if (!response.ok) {
@@ -884,13 +1203,23 @@ async function searchServerMessages(query) {
 
 async function loadMessageContext(messageId) {
   try {
-    const response = await fetch(`/api/messages/context/${messageId}`);
+    const response = await fetch(
+      `/api/messages/context/${messageId}?conversationId=${currentConversationId}`,
+    );
 
     if (!response.ok) {
       throw new Error("Could not load message context.");
     }
 
     const data = await response.json();
+
+    if (
+      data.messages.some(
+        (message) => Number(message.conversation_id) !== Number(currentConversationId),
+      )
+    ) {
+      throw new Error("Message context belongs to another conversation.");
+    }
 
     messagesContainer.innerHTML = "";
 
@@ -1106,6 +1435,10 @@ async function initializeChat() {
     onlineDot.classList.remove("online");
 
     onlineText.textContent = "Checking...";
+
+    if (currentConversationId) {
+      openConversation(currentConversationId);
+    }
   });
 
   socket.on("disconnect", () => {
@@ -1140,7 +1473,11 @@ async function initializeChat() {
     typingIndicator.classList.add("hidden");
   });
 
-  socket.on("chat:history", (messages) => {
+  socket.on("chat:history", ({ conversationId, messages }) => {
+    if (Number(conversationId) !== Number(currentConversationId)) {
+      return;
+    }
+
     messagesContainer.innerHTML = "";
 
     for (const message of messages) {
@@ -1150,9 +1487,46 @@ async function initializeChat() {
     scrollToBottom();
 
     markMessagesAsRead();
+
+    const lastMessage = messages[messages.length - 1];
+
+    if (lastMessage) {
+      fetch(`/api/conversations/${currentConversationId}/read`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId: lastMessage.id }),
+      }).catch(() => {});
+    }
   });
 
   socket.on("chat:message", (message) => {
+    const messageConversationId = Number(message.conversation_id);
+    const conversation = getConversation(messageConversationId);
+
+    if (conversation) {
+      conversation.latest_message_created_at = message.created_at;
+    }
+
+    if (messageConversationId !== Number(currentConversationId)) {
+      if (Number(message.user_id) !== Number(currentUser.id)) {
+        conversationUnreadCounts.set(
+          messageConversationId,
+          (conversationUnreadCounts.get(messageConversationId) || 0) + 1,
+        );
+
+        if (conversation) {
+          conversation.unread_count = conversationUnreadCounts.get(messageConversationId);
+          renderConversations();
+        }
+
+        playMessageSound();
+        tabNotificationActive = true;
+        updateNotificationIndicator();
+      }
+
+      return;
+    }
+
     const wasNearBottom = isNearBottom();
 
     const isOwnMessage = Number(message.user_id) === Number(currentUser.id);
@@ -1188,8 +1562,12 @@ async function initializeChat() {
     markMessageDeleted(data.id);
   });
 
-  socket.on("messages:count", (count) => {
-    updateMessageCount(count);
+  socket.on("messages:count", (data) => {
+    if (typeof data === "object" && Number(data.conversationId) !== Number(currentConversationId)) {
+      return;
+    }
+
+    updateMessageCount(typeof data === "object" ? data.count : data);
   });
 
   socket.on("user:typing", (user) => {
@@ -1212,6 +1590,7 @@ async function initializeChat() {
     }
 
     socket.emit("chat:send", {
+      conversationId: currentConversationId,
       content,
 
       replyToMessageId: replyToMessage ? replyToMessage.id : null,
@@ -1231,7 +1610,7 @@ async function initializeChat() {
       return;
     }
 
-    socket.emit("typing:start");
+    socket.emit("typing:start", { conversationId: currentConversationId });
 
     clearTimeout(typingTimeout);
 
@@ -1241,8 +1620,32 @@ async function initializeChat() {
   messagesContainer.addEventListener("scroll", () => {
     if (isNearBottom()) {
       markMessagesAsRead();
+
+      const lastMessage = messagesContainer.querySelector(".message:last-of-type");
+
+      if (lastMessage && currentConversationId) {
+        fetch(`/api/conversations/${currentConversationId}/read`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messageId: lastMessage.dataset.messageId }),
+        }).catch(() => {});
+      }
     }
   });
+
+  newConversationButton.addEventListener("click", openNewConversation);
+  newConversationClose.addEventListener("click", closeNewConversation);
+  newConversationCancel.addEventListener("click", closeNewConversation);
+  newConversationCreate.addEventListener("click", createConversation);
+  conversationUserSearch.addEventListener("input", () => {
+    loadConversationUsers(conversationUserSearch.value);
+  });
+  conversationMembersButton.addEventListener("click", showConversationMembers);
+  conversationMembersClose.addEventListener("click", closeConversationMembers);
+  document.getElementById("conversation-add-members").addEventListener("click", addConversationMembers);
+  conversationLeave.addEventListener("click", leaveConversation);
+
+  await loadConversations();
 }
 
 function stopTyping() {
@@ -1250,9 +1653,27 @@ function stopTyping() {
     return;
   }
 
-  socket.emit("typing:stop");
+  socket.emit("typing:stop", { conversationId: currentConversationId });
 
   clearTimeout(typingTimeout);
+}
+
+async function leaveConversation() {
+  if (!currentConversationId) {
+    return;
+  }
+
+  const response = await fetch(
+    `/api/conversations/${currentConversationId}/members/me`,
+    { method: "DELETE" },
+  );
+
+  if (!response.ok) {
+    return;
+  }
+
+  closeConversationMembers();
+  await loadConversations();
 }
 
 const originalShowScreen = window.showScreen;

@@ -15,6 +15,22 @@ const {
   setUsername,
   verifyUserAccessCode,
 } = require("./auth");
+const {
+  GENERAL_NAME,
+  parseConversationId,
+  ensureGeneralMember,
+  createConversation,
+  getUserConversations,
+  getConversationMembers,
+  addMember,
+  removeMember,
+  isConversationMember,
+  findPrivateConversation,
+  getConversation,
+  deleteConversationIfEmpty,
+  getConversationMessages,
+  markConversationRead,
+} = require("./conversations");
 const setupSocket = require("./socket");
 
 const app = express();
@@ -151,6 +167,8 @@ app.post("/api/setup-username", accountLimiter, async (req, res) => {
       username
     );
 
+    await ensureGeneralMember(pool, req.session.userId);
+
     res.json({
       success: true,
       username: user.username,
@@ -162,6 +180,229 @@ app.post("/api/setup-username", accountLimiter, async (req, res) => {
       error: error.message,
     });
   }
+});
+
+function requireSessionUser(req, res) {
+  if (!req.session.userId) {
+    res.status(401).json({ error: "You are not logged in." });
+    return null;
+  }
+
+  return req.session.userId;
+}
+
+async function requireConversationMember(req, res) {
+  const userId = requireSessionUser(req, res);
+
+  if (!userId) {
+    return null;
+  }
+
+  const conversationId = parseConversationId(req.params.id || req.query.conversationId);
+
+  if (!conversationId) {
+    res.status(400).json({ error: "Invalid conversation ID." });
+    return null;
+  }
+
+  if (!(await isConversationMember(pool, conversationId, userId))) {
+    res.status(403).json({ error: "You are not a member of this conversation." });
+    return null;
+  }
+
+  return { userId, conversationId };
+}
+
+app.get("/api/users", async (req, res) => {
+  const userId = requireSessionUser(req, res);
+
+  if (!userId) {
+    return;
+  }
+
+  const query = typeof req.query.q === "string" ? req.query.q.trim() : "";
+  const result = await pool.query(
+    `
+      SELECT id, username
+      FROM users
+      WHERE id <> $1
+        AND username IS NOT NULL
+        AND ($2 = '' OR username ILIKE $3)
+      ORDER BY username ASC
+      LIMIT 50
+    `,
+    [userId, query, `%${query}%`],
+  );
+
+  res.json({ users: result.rows });
+});
+
+app.get("/api/conversations", async (req, res) => {
+  const userId = requireSessionUser(req, res);
+
+  if (!userId) {
+    return;
+  }
+
+  await ensureGeneralMember(pool, userId);
+  res.json({ conversations: await getUserConversations(pool, userId) });
+});
+
+app.get("/api/conversations/:id/members", async (req, res) => {
+  const access = await requireConversationMember(req, res);
+
+  if (!access) {
+    return;
+  }
+
+  res.json({ members: await getConversationMembers(pool, access.conversationId) });
+});
+
+app.post("/api/conversations", async (req, res) => {
+  const userId = requireSessionUser(req, res);
+
+  if (!userId) {
+    return;
+  }
+
+  const rawMemberIds = Array.isArray(req.body.memberIds) ? req.body.memberIds : [];
+  const memberIds = [...new Set(rawMemberIds.map(Number))].filter(
+    (memberId) => Number.isInteger(memberId) && memberId > 0 && memberId !== userId,
+  );
+
+  if (memberIds.length === 0) {
+    return res.status(400).json({ error: "Select at least one other user." });
+  }
+
+  const users = await pool.query(
+    `SELECT id FROM users WHERE id = ANY($1::int[]) AND username IS NOT NULL`,
+    [memberIds],
+  );
+
+  if (users.rowCount !== memberIds.length) {
+    return res.status(400).json({ error: "One or more selected users are invalid." });
+  }
+
+  if (memberIds.length === 1) {
+    const existing = await findPrivateConversation(pool, userId, memberIds[0]);
+
+    if (existing) {
+      return res.json({ conversation: existing, existing: true });
+    }
+  }
+
+  const isGroup = memberIds.length > 1;
+  const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
+
+  if (isGroup && (!name || name.length > 100)) {
+    return res.status(400).json({ error: "A group name between 1 and 100 characters is required." });
+  }
+
+  if (name === GENERAL_NAME) {
+    return res.status(400).json({ error: "That conversation name is reserved." });
+  }
+
+  const conversation = await createConversation(pool, {
+    name,
+    isGroup,
+    createdBy: userId,
+    memberIds,
+  });
+
+  res.status(201).json({ conversation, existing: false });
+});
+
+app.post("/api/conversations/:id/members", async (req, res) => {
+  const access = await requireConversationMember(req, res);
+
+  if (!access) {
+    return;
+  }
+
+  const conversation = await getConversation(pool, access.conversationId);
+  const userId = Number(req.body.userId);
+
+  if (!conversation) {
+    return res.status(404).json({ error: "Conversation not found." });
+  }
+
+  if (!conversation.is_group) {
+    return res.status(400).json({ error: "Private conversations cannot add members." });
+  }
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return res.status(400).json({ error: "Invalid user ID." });
+  }
+
+  const user = await pool.query(
+    `SELECT id FROM users WHERE id = $1 AND username IS NOT NULL`,
+    [userId],
+  );
+
+  if (user.rowCount === 0) {
+    return res.status(404).json({ error: "User not found." });
+  }
+
+  const membership = await addMember(pool, access.conversationId, userId);
+
+  if (!membership) {
+    return res.status(409).json({ error: "User is already a member or conversation is invalid." });
+  }
+
+  res.status(201).json({ member: membership });
+});
+
+app.delete("/api/conversations/:id/members/me", async (req, res) => {
+  const access = await requireConversationMember(req, res);
+
+  if (!access) {
+    return;
+  }
+
+  const removed = await removeMember(pool, access.conversationId, access.userId);
+
+  if (!removed) {
+    return res.status(400).json({ error: "You cannot leave General." });
+  }
+
+  await deleteConversationIfEmpty(pool, access.conversationId);
+  res.json({ success: true });
+});
+
+app.get("/api/conversations/:id/messages", async (req, res) => {
+  const access = await requireConversationMember(req, res);
+
+  if (!access) {
+    return;
+  }
+
+  res.json({ messages: await getConversationMessages(pool, access.conversationId) });
+});
+
+app.post("/api/conversations/:id/read", async (req, res) => {
+  const access = await requireConversationMember(req, res);
+
+  if (!access) {
+    return;
+  }
+
+  const messageId = Number(req.body.messageId);
+
+  if (!Number.isInteger(messageId) || messageId <= 0) {
+    return res.status(400).json({ error: "Invalid message ID." });
+  }
+
+  const message = await pool.query(
+    `SELECT id FROM messages WHERE id = $1 AND conversation_id = $2`,
+    [messageId, access.conversationId],
+  );
+
+  if (message.rowCount === 0) {
+    return res.status(400).json({ error: "Message is not in this conversation." });
+  }
+
+  await markConversationRead(pool, access.userId, access.conversationId, messageId);
+  res.json({ success: true });
 });
 
 app.post("/api/change-username", accountLimiter, async (req, res) => {
@@ -261,10 +502,10 @@ app.get("/api/me", async (req, res) => {
 
 app.get("/api/messages/search", searchLimiter, async (req, res) => {
   try {
-    if (!req.session.userId) {
-      return res.status(401).json({
-        error: "You are not logged in.",
-      });
+    const access = await requireConversationMember(req, res);
+
+    if (!access) {
+      return;
     }
 
     const query =
@@ -288,6 +529,7 @@ app.get("/api/messages/search", searchLimiter, async (req, res) => {
       `
         SELECT
           m.id,
+          m.conversation_id,
           m.content,
           m.reply_to_message_id,
           m.created_at,
@@ -303,14 +545,15 @@ app.get("/api/messages/search", searchLimiter, async (req, res) => {
           ON u.id = m.user_id
 
         WHERE
-          m.deleted_at IS NULL
+          m.conversation_id = $2
+          AND m.deleted_at IS NULL
           AND m.content ILIKE $1
 
         ORDER BY m.created_at DESC
 
         LIMIT 500
       `,
-      [`%${query}%`]
+      [`%${query}%`, access.conversationId]
     );
 
     res.json({
@@ -330,10 +573,10 @@ app.get("/api/messages/search", searchLimiter, async (req, res) => {
 
 app.get("/api/messages/context/:id", async (req, res) => {
   try {
-    if (!req.session.userId) {
-      return res.status(401).json({
-        error: "You are not logged in.",
-      });
+    const userId = requireSessionUser(req, res);
+
+    if (!userId) {
+      return;
     }
 
     const messageId =
@@ -353,7 +596,7 @@ app.get("/api/messages/context/:id", async (req, res) => {
      */
     const targetResult = await pool.query(
       `
-        SELECT created_at
+        SELECT created_at, conversation_id
         FROM messages
         WHERE id = $1
       `,
@@ -369,6 +612,25 @@ app.get("/api/messages/context/:id", async (req, res) => {
     const targetTime =
       targetResult.rows[0].created_at;
 
+    const targetConversationId = targetResult.rows[0].conversation_id;
+
+    const requestedConversationId = parseConversationId(req.query.conversationId);
+
+    if (
+      requestedConversationId &&
+      Number(requestedConversationId) !== Number(targetConversationId)
+    ) {
+      return res.status(403).json({
+        error: "Message does not belong to this conversation.",
+      });
+    }
+
+    if (!(await isConversationMember(pool, targetConversationId, userId))) {
+      return res.status(403).json({
+        error: "You are not a member of this conversation.",
+      });
+    }
+
     /*
      * The interval approach above isn't actually
      * what we want because timestamps aren't evenly
@@ -381,7 +643,8 @@ app.get("/api/messages/context/:id", async (req, res) => {
         WITH target AS (
           SELECT
             id,
-            created_at
+            created_at,
+            conversation_id
           FROM messages
           WHERE id = $1
         ),
@@ -390,6 +653,7 @@ app.get("/api/messages/context/:id", async (req, res) => {
           (
             SELECT
               m.id,
+              m.conversation_id,
               m.content,
               m.reply_to_message_id,
               m.created_at,
@@ -414,8 +678,11 @@ app.get("/api/messages/context/:id", async (req, res) => {
             CROSS JOIN target t
 
             WHERE
-              m.created_at < t.created_at
-              OR (m.created_at = t.created_at AND m.id < t.id)
+              m.conversation_id = t.conversation_id
+              AND (
+                m.created_at < t.created_at
+                OR (m.created_at = t.created_at AND m.id < t.id)
+              )
 
             ORDER BY m.created_at DESC, m.id DESC
 
@@ -427,6 +694,7 @@ app.get("/api/messages/context/:id", async (req, res) => {
           (
             SELECT
               m.id,
+              m.conversation_id,
               m.content,
               m.reply_to_message_id,
               m.created_at,
@@ -449,6 +717,7 @@ app.get("/api/messages/context/:id", async (req, res) => {
               ON reply_user.id = reply.user_id
 
             WHERE m.id = $1
+              AND m.conversation_id = $2
           )
 
           UNION ALL
@@ -456,6 +725,7 @@ app.get("/api/messages/context/:id", async (req, res) => {
           (
             SELECT
               m.id,
+              m.conversation_id,
               m.content,
               m.reply_to_message_id,
               m.created_at,
@@ -480,8 +750,11 @@ app.get("/api/messages/context/:id", async (req, res) => {
             CROSS JOIN target t
 
             WHERE
-              m.created_at > t.created_at
-              OR (m.created_at = t.created_at AND m.id > t.id)
+              m.conversation_id = t.conversation_id
+              AND (
+                m.created_at > t.created_at
+                OR (m.created_at = t.created_at AND m.id > t.id)
+              )
 
             ORDER BY m.created_at ASC, m.id ASC
 
@@ -494,7 +767,7 @@ app.get("/api/messages/context/:id", async (req, res) => {
 
         ORDER BY created_at ASC
       `,
-      [messageId]
+      [messageId, targetConversationId]
     );
 
     res.json({
