@@ -1,0 +1,713 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  min-height: 100%;
+
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  background: var(--bg);
+  color: var(--text);
+
+  transition:
+    background var(--transition),
+    color var(--transition);
+}
+
+body {
+  min-height: 100vh;
+}
+
+
+/* =========================================
+   GENERAL
+   ========================================= */
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.hidden {
+  display: none !important;
+}
+
+
+/* =========================================
+   APP
+   ========================================= */
+
+.app {
+  width: 100%;
+  min-height: 100vh;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 24px;
+}
+
+
+/* =========================================
+   LOGIN / USERNAME CARDS
+   ========================================= */
+
+.screen {
+  width: 100%;
+}
+
+.card {
+  width: min(420px, 100%);
+
+  margin: 0 auto;
+
+  padding: 36px;
+
+  background: var(--surface);
+
+  border: 1px solid var(--border);
+
+  border-radius: 20px;
+
+  box-shadow: var(--shadow);
+}
+
+.card h1 {
+  margin: 0;
+
+  font-size: 1.65rem;
+
+  font-weight: 650;
+
+  letter-spacing: -0.025em;
+}
+
+.subtitle {
+  margin: 10px 0 28px;
+
+  color: var(--text-soft);
+
+  line-height: 1.5;
+}
+
+
+/* =========================================
+   FORMS
+   ========================================= */
+
+.card form {
+  display: flex;
+  flex-direction: column;
+
+  gap: 9px;
+}
+
+.card label {
+  font-size: 0.85rem;
+
+  font-weight: 600;
+}
+
+.card input {
+  width: 100%;
+
+  padding: 11px 13px;
+
+  border: 1px solid var(--border);
+
+  border-radius: var(--radius-small);
+
+  outline: none;
+
+  background: var(--surface);
+
+  color: var(--text);
+
+  transition:
+    border var(--transition),
+    box-shadow var(--transition);
+}
+
+.card input:focus {
+  border-color: var(--accent);
+
+  box-shadow:
+    0 0 0 3px var(--accent-soft);
+}
+
+.card button,
+.settings-form button {
+  margin-top: 8px;
+
+  padding: 11px 16px;
+
+  border: none;
+
+  border-radius: var(--radius-small);
+
+  background: var(--accent);
+
+  color: white;
+
+  font-weight: 600;
+
+  transition:
+    background var(--transition),
+    transform var(--transition);
+}
+
+.card button:hover,
+.settings-form button:hover {
+  background: var(--accent-strong);
+}
+
+.card button:active,
+.settings-form button:active {
+  transform: scale(0.98);
+}
+
+
+/* =========================================
+   ERRORS
+   ========================================= */
+
+.error {
+  min-height: 20px;
+
+  margin: 3px 0 0;
+
+  color: var(--danger);
+
+  font-size: 0.82rem;
+}
+
+
+/* =========================================
+   FOCUS
+   ========================================= */
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+
+  outline-offset: 2px;
+}
+
+
+/* =========================================
+   RESPONSIVE
+   ========================================= */
+
+@media (max-width: 600px) {
+  .app {
+    padding: 12px;
+  }
+
+  .card {
+    padding: 28px 22px;
+
+    border-radius: 16px;
+  }
+}
+
+/* =========================================
+   SETTINGS
+   ========================================= */
+
+.settings-overlay {
+  position: fixed;
+
+  inset: 0;
+
+  z-index: 2000;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+
+  background: rgba(0, 0, 0, 0.2);
+
+  backdrop-filter: blur(4px);
+}
+
+.settings-panel {
+  width: min(520px, 100%);
+
+  max-height: min(720px, 90vh);
+
+  overflow-y: auto;
+
+  background: var(--surface);
+
+  border: 1px solid var(--border);
+
+  border-radius: 20px;
+
+  box-shadow: var(--shadow);
+}
+
+.small-panel {
+  width: min(420px, 100%);
+}
+
+.settings-header {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  padding: 20px 22px;
+
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-header h2 {
+  margin: 0;
+
+  font-size: 1.1rem;
+}
+
+.settings-close {
+  width: 32px;
+  height: 32px;
+
+  border: none;
+
+  border-radius: 50%;
+
+  background: transparent;
+
+  color: var(--text-soft);
+
+  font-size: 1.4rem;
+
+  line-height: 1;
+
+  transition:
+    background var(--transition),
+    color var(--transition);
+}
+
+.settings-close:hover {
+  background: var(--accent-soft);
+
+  color: var(--text);
+}
+
+.settings-content {
+  padding: 22px;
+}
+
+.settings-section {
+  padding-bottom: 24px;
+
+  margin-bottom: 24px;
+
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-section:last-of-type {
+  margin-bottom: 0;
+}
+
+.settings-section h3 {
+  margin: 0 0 15px;
+
+  font-size: 0.78rem;
+
+  text-transform: uppercase;
+
+  letter-spacing: 0.06em;
+
+  color: var(--text-soft);
+}
+
+.settings-label {
+  margin-bottom: 9px;
+
+  font-size: 0.85rem;
+
+  font-weight: 600;
+}
+
+
+/* =========================================
+   THEME OPTIONS
+   ========================================= */
+
+.theme-options {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, 1fr);
+
+  gap: 8px;
+}
+
+.theme-option {
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  gap: 7px;
+
+  padding: 10px 6px;
+
+  border: 1px solid var(--border);
+
+  border-radius: 11px;
+
+  background: var(--surface);
+
+  color: var(--text);
+
+  font-size: 0.72rem;
+
+  transition:
+    border var(--transition),
+    background var(--transition),
+    transform var(--transition);
+}
+
+.theme-option:hover {
+  background: var(--accent-soft);
+
+  transform: translateY(-1px);
+}
+
+.theme-option.selected {
+  border-color: var(--accent);
+
+  background: var(--accent-soft);
+}
+
+.theme-preview {
+  width: 34px;
+  height: 22px;
+
+  border-radius: 7px;
+
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.neutral-preview {
+  background: #eeeeef;
+}
+
+.rose-preview {
+  background: #f8dce6;
+}
+
+.lavender-preview {
+  background: #e7e1f7;
+}
+
+.sky-preview {
+  background: #dceff8;
+}
+
+.mint-preview {
+  background: #dcefe6;
+}
+
+.peach-preview {
+  background: #f8e5d6;
+}
+
+.sunset-preview {
+  background: #f7ddd8;
+}
+
+.forest-preview {
+  background: #dce9df;
+}
+
+.ocean-preview {
+  background: #d8eaf3;
+}
+
+.plum-preview {
+  background: #e8dce9;
+}
+
+.frost-preview {
+  background: #dfe9ee;
+}
+
+.midnight-preview {
+  background: #24282c;
+}
+
+
+/* =========================================
+   TOGGLES
+   ========================================= */
+
+.settings-toggle {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 15px;
+
+  margin-top: 14px;
+
+  color: var(--text);
+
+  font-size: 0.85rem;
+
+  cursor: pointer;
+}
+
+.settings-toggle input {
+  position: absolute;
+
+  opacity: 0;
+
+  pointer-events: none;
+}
+
+.toggle-slider {
+  position: relative;
+
+  width: 38px;
+  height: 21px;
+
+  flex-shrink: 0;
+
+  border-radius: 20px;
+
+  background: var(--border);
+
+  transition: background var(--transition);
+}
+
+.toggle-slider::after {
+  content: "";
+
+  position: absolute;
+
+  top: 3px;
+  left: 3px;
+
+  width: 15px;
+  height: 15px;
+
+  border-radius: 50%;
+
+  background: white;
+
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+
+  transition: transform var(--transition);
+}
+
+.settings-toggle input:checked
+  + .toggle-slider {
+  background: var(--accent);
+}
+
+.settings-toggle input:checked
+  + .toggle-slider::after {
+  transform: translateX(17px);
+}
+
+
+/* =========================================
+   ACCOUNT
+   ========================================= */
+
+.account-info {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 15px;
+
+  margin-bottom: 12px;
+}
+
+.account-label {
+  color: var(--text-soft);
+
+  font-size: 0.8rem;
+}
+
+.account-value {
+  font-weight: 600;
+
+  font-size: 0.85rem;
+}
+
+.settings-button {
+  width: 100%;
+
+  padding: 10px 13px;
+
+  margin-top: 7px;
+
+  border: 1px solid var(--border);
+
+  border-radius: 10px;
+
+  background: var(--surface);
+
+  color: var(--text);
+
+  font-weight: 550;
+
+  transition:
+    background var(--transition),
+    border var(--transition);
+}
+
+.settings-button:hover {
+  background: var(--accent-soft);
+
+  border-color: var(--accent);
+}
+
+.logout-button {
+  color: var(--danger);
+}
+
+
+/* =========================================
+   USER ID
+   ========================================= */
+
+.settings-user-id {
+  margin-top: 26px;
+
+  text-align: center;
+
+  color: var(--text-soft);
+
+  opacity: 0.5;
+
+  font-size: 0.65rem;
+
+  user-select: text;
+}
+
+
+/* =========================================
+   CHANGE USERNAME FORM
+   ========================================= */
+
+.settings-form {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 8px;
+
+  padding: 22px;
+}
+
+.settings-form label {
+  margin-top: 5px;
+
+  font-size: 0.82rem;
+
+  font-weight: 600;
+}
+
+.settings-form input {
+  padding: 10px 12px;
+
+  border: 1px solid var(--border);
+
+  border-radius: 10px;
+
+  outline: none;
+
+  background: var(--surface);
+
+  color: var(--text);
+}
+
+.settings-form input:focus {
+  border-color: var(--accent);
+
+  box-shadow:
+    0 0 0 3px var(--accent-soft);
+}
+
+.settings-form-actions {
+  display: flex;
+
+  justify-content: flex-end;
+
+  gap: 8px;
+
+  margin-top: 8px;
+}
+
+.settings-form-actions button {
+  margin-top: 0;
+}
+
+.secondary-button {
+  background: var(--surface-soft) !important;
+
+  color: var(--text) !important;
+}
+
+.secondary-button:hover {
+  background: var(--border) !important;
+}
+
+
+/* =========================================
+   MOBILE SETTINGS
+   ========================================= */
+
+@media (max-width: 600px) {
+  .settings-overlay {
+    align-items: flex-end;
+
+    padding: 0;
+  }
+
+  .settings-panel {
+    width: 100%;
+
+    max-height: 90vh;
+
+    border-radius:
+      20px 20px 0 0;
+
+    border-bottom: none;
+  }
+
+  .theme-options {
+    grid-template-columns:
+      repeat(2, 1fr);
+  }
+}

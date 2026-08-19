@@ -1,0 +1,282 @@
+:root {
+  --bg: #f5f5f6;
+  --surface: #ffffff;
+  --surface-soft: #eeeeef;
+  --input: #ffffff;
+
+  --text: #252525;
+  --text-soft: #777777;
+
+  --border: #e4e4e6;
+
+  --accent: #88888d;
+  --accent-soft: #e9e9eb;
+  --accent-strong: #68686d;
+
+  --danger: #a65f5f;
+
+  --shadow:
+    0 10px 35px rgba(0, 0, 0, 0.07);
+
+  --radius: 16px;
+  --radius-small: 10px;
+
+  --transition: 150ms ease;
+}
+
+
+/* =========================================
+   NEUTRAL
+   ========================================= */
+
+[data-theme="neutral"] {
+  --bg: #f5f5f6;
+  --surface: #ffffff;
+  --surface-soft: #eeeeef;
+  --input: #ffffff;
+
+  --text: #252525;
+  --text-soft: #777777;
+
+  --border: #e4e4e6;
+
+  --accent: #88888d;
+  --accent-soft: #e9e9eb;
+  --accent-strong: #68686d;
+}
+
+
+/* =========================================
+   ROSE
+   ========================================= */
+
+[data-theme="rose"] {
+  --bg: #fcf4f7;
+  --surface: #ffffff;
+  --surface-soft: #f9e8ee;
+  --input: #fffafb;
+
+  --text: #30272b;
+  --text-soft: #8d777f;
+
+  --border: #f0d9e1;
+
+  --accent: #d98fa6;
+  --accent-soft: #f6dce5;
+  --accent-strong: #b96e87;
+}
+
+
+/* =========================================
+   LAVENDER
+   ========================================= */
+
+[data-theme="lavender"] {
+  --bg: #f7f5fc;
+  --surface: #ffffff;
+  --surface-soft: #ece8f8;
+  --input: #fcfbff;
+
+  --text: #2d2936;
+  --text-soft: #81788f;
+
+  --border: #e1dcef;
+
+  --accent: #a99bd8;
+  --accent-soft: #e9e4f7;
+  --accent-strong: #8878c2;
+}
+
+
+/* =========================================
+   SKY
+   ========================================= */
+
+[data-theme="sky"] {
+  --bg: #f3f9fc;
+  --surface: #ffffff;
+  --surface-soft: #e1f0f7;
+  --input: #fbfdff;
+
+  --text: #273137;
+  --text-soft: #71828a;
+
+  --border: #d9e9f0;
+
+  --accent: #82b9d8;
+  --accent-soft: #dceef6;
+  --accent-strong: #609bbd;
+}
+
+
+/* =========================================
+   MINT
+   ========================================= */
+
+[data-theme="mint"] {
+  --bg: #f3faf7;
+  --surface: #ffffff;
+  --surface-soft: #e1f1e9;
+  --input: #fbfffd;
+
+  --text: #27332e;
+  --text-soft: #718079;
+
+  --border: #d8ebe2;
+
+  --accent: #86c1aa;
+  --accent-soft: #dcefe6;
+  --accent-strong: #62a48b;
+}
+
+
+/* =========================================
+   PEACH
+   ========================================= */
+
+[data-theme="peach"] {
+  --bg: #fdf7f2;
+  --surface: #ffffff;
+  --surface-soft: #f8e7d8;
+  --input: #fffdfb;
+
+  --text: #342d28;
+  --text-soft: #8a7a6e;
+
+  --border: #efded0;
+
+  --accent: #e5aa82;
+  --accent-soft: #f8e5d6;
+  --accent-strong: #c98a60;
+}
+
+
+/* =========================================
+   SUNSET
+   ========================================= */
+
+[data-theme="sunset"] {
+  --bg: #fff6f3;
+  --surface: #ffffff;
+  --surface-soft: #fbe4df;
+  --input: #fffafa;
+
+  --text: #352a29;
+  --text-soft: #8c7773;
+
+  --border: #f0d8d2;
+
+  --accent: #dd9b91;
+  --accent-soft: #f7ddd8;
+  --accent-strong: #c77c70;
+}
+
+
+/* =========================================
+   FOREST
+   ========================================= */
+
+[data-theme="forest"] {
+  --bg: #f3f8f4;
+  --surface: #ffffff;
+  --surface-soft: #dfece2;
+  --input: #fbfefb;
+
+  --text: #273129;
+  --text-soft: #718078;
+
+  --border: #d4e2d7;
+
+  --accent: #7fa58a;
+  --accent-soft: #dce9df;
+  --accent-strong: #5e876b;
+}
+
+
+/* =========================================
+   OCEAN
+   ========================================= */
+
+[data-theme="ocean"] {
+  --bg: #f2f8fb;
+  --surface: #ffffff;
+  --surface-soft: #deedf4;
+  --input: #fbfeff;
+
+  --text: #263139;
+  --text-soft: #70828b;
+
+  --border: #d4e6ed;
+
+  --accent: #6fa8c5;
+  --accent-soft: #d8eaf3;
+  --accent-strong: #508ba9;
+}
+
+
+/* =========================================
+   PLUM
+   ========================================= */
+
+[data-theme="plum"] {
+  --bg: #f8f4f9;
+  --surface: #ffffff;
+  --surface-soft: #ebe1ed;
+  --input: #fefcff;
+
+  --text: #302832;
+  --text-soft: #827582;
+
+  --border: #e2d5e5;
+
+  --accent: #a57ba9;
+  --accent-soft: #e8dce9;
+  --accent-strong: #855e8a;
+}
+
+
+/* =========================================
+   FROST
+   ========================================= */
+
+[data-theme="frost"] {
+  --bg: #f2f6f8;
+  --surface: #ffffff;
+  --surface-soft: #e2e9ed;
+  --input: #fbfdfe;
+
+  --text: #273137;
+  --text-soft: #748088;
+
+  --border: #d8e1e6;
+
+  --accent: #8ca9b8;
+  --accent-soft: #dfe9ee;
+  --accent-strong: #6f909f;
+}
+
+
+/* =========================================
+   MIDNIGHT
+   ========================================= */
+
+[data-theme="midnight"] {
+  --bg: #111315;
+  --surface: #1a1d20;
+  --surface-soft: #24282c;
+  --input: #202428;
+
+  --text: #f0f2f3;
+  --text-soft: #9ba2a7;
+
+  --border: #32373c;
+
+  --accent: #8d99a3;
+  --accent-soft: #30363b;
+  --accent-strong: #b0bac1;
+
+  --danger: #d07878;
+
+  --shadow:
+    0 12px 40px rgba(0, 0, 0, 0.4);
+}
