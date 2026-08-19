@@ -105,6 +105,33 @@ button {
   line-height: 1.5;
 }
 
+.access-code-notice {
+  position: fixed;
+
+  right: 16px;
+  bottom: 16px;
+  left: 16px;
+
+  width: fit-content;
+  max-width: calc(100% - 32px);
+  margin: 0 auto;
+  padding: 7px 11px;
+
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 8px;
+
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  color: var(--text-soft);
+
+  font-size: 0.7rem;
+  line-height: 1.35;
+  text-align: center;
+
+  opacity: 0.82;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+}
+
 
 /* =========================================
    FORMS
