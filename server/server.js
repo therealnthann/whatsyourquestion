@@ -2,6 +2,7 @@ const express = require("express");
 const http = require("http");
 const path = require("path");
 const helmet = require("helmet");
+const { rateLimit } = require("express-rate-limit");
 const session = require("express-session");
 const pgSession = require("connect-pg-simple")(session);
 const { Server } = require("socket.io");
@@ -25,9 +26,44 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 
+if (!process.env.SESSION_SECRET) {
+  throw new Error("SESSION_SECRET must be configured.");
+}
+
+if (
+  process.env.NODE_ENV === "production" &&
+  process.env.SESSION_SECRET.length < 32
+) {
+  throw new Error("Production SESSION_SECRET must be at least 32 characters.");
+}
+
 app.use(helmet());
-app.use(express.json());
+app.use(express.json({ limit: "32kb" }));
 app.use(express.urlencoded({ extended: false }));
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Too many login attempts. Try again later." },
+});
+
+const accountLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Too many account changes. Try again later." },
+});
+
+const searchLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 60,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Too many searches. Try again later." },
+});
 
 const sessionMiddleware = session({
   store: new pgSession({
@@ -50,7 +86,7 @@ app.use(sessionMiddleware);
 // Give Socket.IO access to the same login session.
 io.engine.use(sessionMiddleware);
 
-app.post("/api/login", async (req, res) => {
+app.post("/api/login", loginLimiter, async (req, res) => {
   try {
     const { accessCode } = req.body;
 
@@ -68,7 +104,17 @@ app.post("/api/login", async (req, res) => {
       });
     }
 
-    req.session.userId = user.id;
+    await new Promise((resolve, reject) => {
+      req.session.regenerate((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        req.session.userId = user.id;
+        resolve();
+      });
+    });
 
     res.json({
       success: true,
@@ -84,7 +130,7 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-app.post("/api/setup-username", async (req, res) => {
+app.post("/api/setup-username", accountLimiter, async (req, res) => {
   try {
     if (!req.session.userId) {
       return res.status(401).json({
@@ -118,7 +164,7 @@ app.post("/api/setup-username", async (req, res) => {
   }
 });
 
-app.post("/api/change-username", async (req, res) => {
+app.post("/api/change-username", accountLimiter, async (req, res) => {
   try {
     if (!req.session.userId) {
       return res.status(401).json({
@@ -213,7 +259,7 @@ app.get("/api/me", async (req, res) => {
   }
 });
 
-app.get("/api/messages/search", async (req, res) => {
+app.get("/api/messages/search", searchLimiter, async (req, res) => {
   try {
     if (!req.session.userId) {
       return res.status(401).json({
@@ -262,7 +308,7 @@ app.get("/api/messages/search", async (req, res) => {
 
         ORDER BY m.created_at DESC
 
-        LIMIT 100
+        LIMIT 500
       `,
       [`%${query}%`]
     );
@@ -367,9 +413,11 @@ app.get("/api/messages/context/:id", async (req, res) => {
 
             CROSS JOIN target t
 
-            WHERE m.created_at < t.created_at
+            WHERE
+              m.created_at < t.created_at
+              OR (m.created_at = t.created_at AND m.id < t.id)
 
-            ORDER BY m.created_at DESC
+            ORDER BY m.created_at DESC, m.id DESC
 
             LIMIT 20
           )
@@ -431,9 +479,11 @@ app.get("/api/messages/context/:id", async (req, res) => {
 
             CROSS JOIN target t
 
-            WHERE m.created_at > t.created_at
+            WHERE
+              m.created_at > t.created_at
+              OR (m.created_at = t.created_at AND m.id > t.id)
 
-            ORDER BY m.created_at ASC
+            ORDER BY m.created_at ASC, m.id ASC
 
             LIMIT 20
           )
@@ -483,6 +533,20 @@ app.post("/api/logout", (req, res) => {
 });
 
 app.use(express.static(path.join(__dirname, "..", "public")));
+
+app.use((error, req, res, next) => {
+  if (error.type === "entity.too.large") {
+    return res.status(413).json({ error: "Request body is too large." });
+  }
+
+  console.error("Unhandled request error:", error);
+
+  if (res.headersSent) {
+    return next(error);
+  }
+
+  res.status(500).json({ error: "Something went wrong." });
+});
 
 setupSocket(io, pool);
 

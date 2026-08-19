@@ -402,6 +402,74 @@
   border-top: 1px solid var(--border);
 }
 
+.reply-bar {
+  display: flex;
+
+  align-items: center;
+  gap: 12px;
+
+  padding: 9px 18px;
+
+  border-top: 1px solid var(--border);
+
+  background: var(--surface-alt);
+}
+
+.reply-bar.hidden {
+  display: none;
+}
+
+.reply-bar-text {
+  min-width: 0;
+
+  flex: 1;
+
+  overflow: hidden;
+
+  color: var(--text-soft);
+
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.reply-bar-text strong,
+.reply-bar-text span {
+  display: block;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+}
+
+.reply-bar-text strong {
+  color: var(--accent-strong);
+  font-size: 0.7rem;
+}
+
+.reply-cancel {
+  flex-shrink: 0;
+
+  padding: 5px 8px;
+
+  border: 1px solid var(--border);
+  border-radius: 6px;
+
+  background: var(--surface);
+  color: var(--text-soft);
+
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.7rem;
+}
+
+.reply-cancel:hover,
+.reply-cancel:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
 .message-form input {
   flex: 1;
 
@@ -566,6 +634,16 @@
 
   .chat-header {
     padding: 15px;
+
+    align-items: flex-start;
+  }
+
+  .chat-header-actions {
+    flex: 1;
+  }
+
+  .message-search {
+    width: 100%;
   }
 
   .messages {
@@ -895,6 +973,40 @@
   opacity: 0.8;
 }
 
+.message-search-nav {
+  flex-shrink: 0;
+
+  width: 22px;
+  height: 26px;
+
+  padding: 0;
+
+  border: 0;
+  border-radius: 5px;
+
+  background: transparent;
+  color: var(--text-soft);
+
+  cursor: pointer;
+  font-size: 10px;
+
+  transition:
+    background var(--transition),
+    color var(--transition),
+    opacity var(--transition);
+}
+
+.message-search-nav:hover:not(:disabled),
+.message-search-nav:focus-visible {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.message-search-nav:disabled {
+  cursor: default;
+  opacity: 0.3;
+}
+
 /*
  * Hide the browser's default search clear button.
  */
@@ -945,4 +1057,15 @@
 
 .message-search-clear.visible {
   display: flex;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

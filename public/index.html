@@ -191,6 +191,28 @@
   							class="message-search-count"
 							></span>
 
+							<button
+								id="message-search-previous"
+								class="message-search-nav"
+								type="button"
+								aria-label="Previous search result"
+								title="Previous search result"
+								disabled
+							>
+								◀
+							</button>
+
+							<button
+								id="message-search-next"
+								class="message-search-nav"
+								type="button"
+								aria-label="Next search result"
+								title="Next search result"
+								disabled
+							>
+								▶
+							</button>
+
 						</div>
 
 						<button
@@ -212,6 +234,8 @@
         <main
           id="messages"
           class="messages"
+					role="log"
+					aria-label="Chat messages"
           aria-live="polite"
         ></main>
 
@@ -276,6 +300,7 @@
 	<div
 		id="settings-overlay"
 		class="settings-overlay hidden"
+		aria-hidden="true"
 	>
 
 		<section
@@ -527,6 +552,7 @@
 	<div
 		id="username-change-overlay"
 		class="settings-overlay hidden"
+		aria-hidden="true"
 	>
 
 		<section

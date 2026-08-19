@@ -32,6 +32,9 @@ const logoutButton =
     "logout-button"
   );
 
+let settingsReturnFocus = null;
+let usernameChangeReturnFocus = null;
+
 
 const usernameChangeOverlay =
   document.getElementById(
@@ -111,6 +114,8 @@ function applyMessageSound(enabled) {
 
 
 function openSettings() {
+  settingsReturnFocus = document.activeElement;
+
   settingsOverlay.classList.remove(
     "hidden"
   );
@@ -119,6 +124,8 @@ function openSettings() {
     "aria-hidden",
     "false"
   );
+
+  settingsClose.focus();
 }
 
 
@@ -131,14 +138,21 @@ function closeSettings() {
     "aria-hidden",
     "true"
   );
+
+  if (settingsReturnFocus) {
+    settingsReturnFocus.focus();
+    settingsReturnFocus = null;
+  }
 }
 
 
 function openUsernameChange() {
+  usernameChangeReturnFocus = document.activeElement;
+
   usernameChangeError.textContent = "";
 
   newUsernameInput.value =
-    settingsUsername.textContent === "â€”"
+    settingsUsername.textContent === "-"
       ? ""
       : settingsUsername.textContent;
 
@@ -158,6 +172,11 @@ function closeUsernameChange() {
   );
 
   usernameChangeError.textContent = "";
+
+  if (usernameChangeReturnFocus) {
+    usernameChangeReturnFocus.focus();
+    usernameChangeReturnFocus = null;
+  }
 }
 
 
@@ -168,7 +187,7 @@ window.updateSettingsUser =
     }
 
     settingsUsername.textContent =
-      user.username || "â€”";
+      user.username || "-";
 
     settingsUserId.textContent =
       `ID: ${user.id}`;

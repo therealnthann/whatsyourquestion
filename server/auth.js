@@ -65,13 +65,16 @@ async function authenticateWithCode(accessCode) {
  * Assign a username to an account during first login.
  */
 async function setUsername(userId, username) {
-  const normalizedUsername = username.trim();
+  const normalizedUsername = username.trim().normalize("NFC");
 
   if (
     normalizedUsername.length < 1 ||
-    normalizedUsername.length > 32
+    normalizedUsername.length > 32 ||
+    /[\u0000-\u001F\u007F]/.test(normalizedUsername)
   ) {
-    throw new Error("Username must be between 1 and 32 characters.");
+    throw new Error(
+      "Username must be between 1 and 32 characters and contain no control characters.",
+    );
   }
 
   const existing = await pool.query(

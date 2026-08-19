@@ -60,6 +60,27 @@ async function getMessageCount(pool) {
   return result.rows[0].count;
 }
 
+function allowEvent(socket, eventName, limit, windowMs) {
+  if (!socket.eventTimes) {
+    socket.eventTimes = new Map();
+  }
+
+  const now = Date.now();
+  const recent = (socket.eventTimes.get(eventName) || []).filter(
+    (time) => now - time < windowMs,
+  );
+
+  if (recent.length >= limit) {
+    socket.eventTimes.set(eventName, recent);
+    return false;
+  }
+
+  recent.push(now);
+  socket.eventTimes.set(eventName, recent);
+
+  return true;
+}
+
 function setupSocket(io, pool) {
   const onlineUsers = new Map();
 
@@ -151,6 +172,13 @@ function setupSocket(io, pool) {
      */
     socket.on("chat:send", async (data) => {
     try {
+      if (!allowEvent(socket, "chat:send", 30, 60 * 1000)) {
+      socket.emit("chat:error", {
+        error: "You are sending messages too quickly.",
+      });
+      return;
+      }
+
         if (
         !data ||
         typeof data.content !== "string"
@@ -158,12 +186,13 @@ function setupSocket(io, pool) {
         return;
         }
 
-        const content = data.content.trim();
+        const content = data.content.trim().normalize("NFC");
 
         // Empty or excessively long messages
         if (
         !content ||
-        content.length > 2000
+        content.length > 2000 ||
+        /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(content)
         ) {
         return;
         }
@@ -333,6 +362,13 @@ function setupSocket(io, pool) {
     */
     socket.on("chat:edit", async (data) => {
     try {
+      if (!allowEvent(socket, "chat:edit", 20, 60 * 1000)) {
+      socket.emit("chat:error", {
+        error: "Too many edits. Try again shortly.",
+      });
+      return;
+      }
+
         if (!data) {
         return;
         }
@@ -342,14 +378,15 @@ function setupSocket(io, pool) {
 
         const content =
         typeof data.content === "string"
-            ? data.content.trim()
+            ? data.content.trim().normalize("NFC")
             : "";
 
         if (
         !Number.isInteger(messageId) ||
         messageId <= 0 ||
         !content ||
-        content.length > 2000
+        content.length > 2000 ||
+        /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(content)
         ) {
         return;
         }
@@ -455,6 +492,13 @@ function setupSocket(io, pool) {
     */
     socket.on("chat:delete", async (data) => {
     try {
+      if (!allowEvent(socket, "chat:delete", 20, 60 * 1000)) {
+      socket.emit("chat:error", {
+        error: "Too many delete requests. Try again shortly.",
+      });
+      return;
+      }
+
         if (!data) {
         return;
         }
@@ -538,6 +582,10 @@ function setupSocket(io, pool) {
      * Typing indicator.
      */
     socket.on("typing:start", () => {
+      if (!allowEvent(socket, "typing:start", 30, 10 * 1000)) {
+        return;
+      }
+
       socket.broadcast.emit("user:typing", {
         id: socket.user.id,
         username: socket.user.username,

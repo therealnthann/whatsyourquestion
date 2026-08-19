@@ -89,11 +89,19 @@ const messageSearchCount = document.getElementById("message-search-count");
 
 const messageSearchClear = document.getElementById("message-search-clear");
 
+const messageSearchPrevious = document.getElementById(
+  "message-search-previous",
+);
+
+const messageSearchNext = document.getElementById("message-search-next");
+
 let searchResults = [];
 let currentSearchResult = -1;
 
 let searchTimeout = null;
 let searchRequestId = 0;
+
+const BOTTOM_THRESHOLD_PX = 100;
 
 function updateSearchClearButton() {
   messageSearchClear.classList.toggle(
@@ -274,14 +282,19 @@ function shouldGroupWithPrevious(message) {
 }
 
 function isNearBottom() {
-  const threshold = 100;
-
   return (
     messagesContainer.scrollHeight -
       messagesContainer.scrollTop -
       messagesContainer.clientHeight <=
-    threshold
+    BOTTOM_THRESHOLD_PX
   );
+}
+
+function updateSearchNavigationState() {
+  const hasResults = searchResults.length > 0;
+
+  messageSearchPrevious.disabled = !hasResults;
+  messageSearchNext.disabled = !hasResults;
 }
 
 function markMessagesAsRead() {
@@ -742,7 +755,11 @@ function showReplyBar(message) {
 
   cancel.className = "reply-cancel";
 
-  cancel.textContent = "Ã—";
+  cancel.textContent = "Cancel";
+
+  cancel.setAttribute("aria-label", "Cancel reply");
+
+  cancel.title = "Cancel reply";
 
   cancel.addEventListener("click", cancelReply);
 
@@ -849,10 +866,14 @@ async function searchServerMessages(query) {
 
         messageSearchCount.textContent = "0 results";
 
+        updateSearchNavigationState();
+
         return;
       }
 
       currentSearchResult = 0;
+
+      updateSearchNavigationState();
 
       await jumpToSearchResult();
     } catch (error) {
@@ -890,6 +911,8 @@ function searchMessages(query) {
 
   searchResults = [];
   currentSearchResult = -1;
+
+  updateSearchNavigationState();
 
   messageSearchCount.textContent = "";
 
@@ -934,6 +957,8 @@ function searchMessages(query) {
 
     jumpToSearchResult();
   }
+
+  updateSearchNavigationState();
 }
 
 async function jumpToSearchResult() {
@@ -943,6 +968,8 @@ async function jumpToSearchResult() {
 
   if (currentSearchResult < 0 || currentSearchResult >= searchResults.length) {
     messageSearchCount.textContent = "";
+
+    updateSearchNavigationState();
 
     return;
   }
@@ -980,6 +1007,8 @@ async function jumpToSearchResult() {
   messageSearchCount.textContent = `${currentSearchResult + 1} / ${
     searchResults.length
   }`;
+
+  updateSearchNavigationState();
 
   target.scrollIntoView({
     behavior: "smooth",
@@ -1030,6 +1059,10 @@ messageSearchClear.addEventListener("click", () => {
   messageSearchInput.focus();
 });
 
+messageSearchPrevious.addEventListener("click", previousSearchResult);
+
+messageSearchNext.addEventListener("click", nextSearchResult);
+
 messageSearchInput.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     event.preventDefault();
@@ -1039,11 +1072,19 @@ messageSearchInput.addEventListener("keydown", (event) => {
     searchMessages("");
 
     updateSearchClearButton();
+
+    updateSearchNavigationState();
+
+    return;
   }
 
-  if (event.shiftKey) {
+  if (event.key === "ArrowUp" || (event.key === "Enter" && event.shiftKey)) {
+    event.preventDefault();
+
     previousSearchResult();
-  } else {
+  } else if (event.key === "ArrowDown" || event.key === "Enter") {
+    event.preventDefault();
+
     nextSearchResult();
   }
 });
