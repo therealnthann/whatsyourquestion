@@ -22,6 +22,20 @@ async function seedMessages() {
     throw new Error("Create at least one named user before seeding messages.");
   }
 
+  const general = await pool.query(
+    `
+      SELECT id
+      FROM conversations
+      WHERE is_general = true
+    `,
+  );
+
+  if (general.rowCount === 0) {
+    throw new Error("General conversation is not initialized.");
+  }
+
+  const generalId = general.rows[0].id;
+
   await pool.query("BEGIN");
 
   try {
@@ -31,11 +45,12 @@ async function seedMessages() {
 
       await pool.query(
         `
-          INSERT INTO messages (user_id, content, created_at)
-          VALUES ($1, $2, $3)
+          INSERT INTO messages (user_id, conversation_id, content, created_at)
+          VALUES ($1, $2, $3, $4)
         `,
         [
           user.id,
+          generalId,
           `Seed message ${index + 1}: searchable test content`,
           createdAt,
         ],

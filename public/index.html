@@ -126,6 +126,34 @@
 
       <div class="chat-container">
 
+				<aside
+					id="conversation-sidebar"
+					class="conversation-sidebar"
+					aria-label="Conversations"
+				>
+					<div class="conversation-sidebar-header">
+						<h2>Chats</h2>
+
+						<button
+							id="new-conversation-button"
+							class="icon-button conversation-add-button"
+							type="button"
+							aria-label="New conversation"
+							title="New conversation"
+						>
+							+
+						</button>
+					</div>
+
+					<nav
+						id="conversation-list"
+						class="conversation-list"
+						aria-label="Your conversations"
+					></nav>
+				</aside>
+
+				<div class="chat-main">
+
 
         <!-- HEADER -->
 
@@ -133,7 +161,7 @@
 
           <div class="chat-title">
 
-            <h1>
+						<h1 id="chat-title">
               What's Your Question?
             </h1>
 
@@ -228,6 +256,14 @@
 							⚙
 						</button>
 
+						<button
+							id="leave-conversation-button"
+							class="leave-conversation-button hidden"
+							type="button"
+						>
+							Leave
+						</button>
+
 					</div>
 
         </header>
@@ -290,6 +326,8 @@
           </button>
 
         </form>
+
+				</div>
 
       </div>
 
@@ -639,6 +677,66 @@
 
 		</section>
 
+	</div>
+
+	<!-- ==============================
+			NEW CONVERSATION
+			============================== -->
+
+	<div
+		id="conversation-create-overlay"
+		class="settings-overlay hidden"
+		aria-hidden="true"
+	>
+		<section
+			class="settings-panel conversation-create-panel"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="conversation-create-title"
+		>
+			<header class="settings-header">
+				<h2 id="conversation-create-title">New conversation</h2>
+
+				<button
+					id="conversation-create-close"
+					class="settings-close"
+					type="button"
+					aria-label="Close"
+				>
+					×
+				</button>
+			</header>
+
+			<form id="conversation-create-form" class="settings-form">
+				<p class="conversation-create-help">
+					Choose one person for a private chat or several people for a group chat.
+				</p>
+
+				<div id="conversation-user-list" class="conversation-user-list"></div>
+
+				<label for="conversation-name" id="conversation-name-label" class="hidden">
+					Group name
+				</label>
+
+				<input
+					id="conversation-name"
+					class="hidden"
+					type="text"
+					maxlength="100"
+					placeholder="Group name"
+					autocomplete="off"
+				>
+
+				<p id="conversation-create-error" class="error" aria-live="polite"></p>
+
+				<div class="settings-form-actions">
+					<button id="conversation-create-cancel" type="button" class="secondary-button">
+						Cancel
+					</button>
+					<button type="submit">Create</button>
+				</div>
+			</form>
+		</section>
 	</div>
 
 		<!-- ==============================

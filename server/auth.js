@@ -36,6 +36,17 @@ async function createAccessCode(accessCode) {
     [hash]
   );
 
+  await pool.query(
+    `
+      INSERT INTO conversation_members (conversation_id, user_id)
+      SELECT id, $1
+      FROM conversations
+      WHERE is_general = true
+      ON CONFLICT DO NOTHING
+    `,
+    [result.rows[0].id],
+  );
+
   return result.rows[0];
 }
 

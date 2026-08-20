@@ -16,6 +16,14 @@ const {
   verifyUserAccessCode,
 } = require("./auth");
 const setupSocket = require("./socket");
+const {
+  getConversation,
+  requireConversationMember,
+  getUserConversations,
+  getNamedUsers,
+  createConversation,
+  leaveConversation,
+} = require("./conversations");
 
 const app = express();
 const server = http.createServer(app);
@@ -266,6 +274,81 @@ app.get("/api/me", async (req, res) => {
   }
 });
 
+app.get("/api/users", async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: "You are not logged in." });
+    }
+
+    res.json({ users: await getNamedUsers(pool, req.session.userId) });
+  } catch (error) {
+    console.error("User list error:", error);
+    res.status(500).json({ error: "Could not load users." });
+  }
+});
+
+app.get("/api/conversations", async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: "You are not logged in." });
+    }
+
+    res.json({
+      conversations: await getUserConversations(pool, req.session.userId),
+    });
+  } catch (error) {
+    console.error("Conversation list error:", error);
+    res.status(500).json({ error: "Could not load conversations." });
+  }
+});
+
+app.post("/api/conversations", accountLimiter, async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: "You are not logged in." });
+    }
+
+    const participantIds = Array.isArray(req.body.participantIds)
+      ? req.body.participantIds
+      : [];
+
+    const result = await createConversation(
+      pool,
+      req.session.userId,
+      participantIds,
+      req.body.name,
+    );
+
+    updateSocketUser.notifyConversationUsers(result.memberIds);
+
+    res.status(201).json({ conversation: result.conversation });
+  } catch (error) {
+    console.error("Conversation creation error:", error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.post("/api/conversations/:id/leave", accountLimiter, async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: "You are not logged in." });
+    }
+
+    const conversationId = await requireConversationMember(
+      pool,
+      req.params.id,
+      req.session.userId,
+    );
+
+    await leaveConversation(pool, conversationId, req.session.userId);
+
+    res.json({ success: true, conversationId });
+  } catch (error) {
+    console.error("Conversation leave error:", error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
 app.get("/api/messages/search", searchLimiter, async (req, res) => {
   try {
     if (!req.session.userId) {
@@ -273,6 +356,12 @@ app.get("/api/messages/search", searchLimiter, async (req, res) => {
         error: "You are not logged in.",
       });
     }
+
+    const conversationId = await requireConversationMember(
+      pool,
+      req.query.conversationId,
+      req.session.userId,
+    );
 
     const query =
       typeof req.query.q === "string"
@@ -310,14 +399,15 @@ app.get("/api/messages/search", searchLimiter, async (req, res) => {
           ON u.id = m.user_id
 
         WHERE
-          m.deleted_at IS NULL
+          m.conversation_id = $2
+          AND m.deleted_at IS NULL
           AND m.content ILIKE $1
 
         ORDER BY m.created_at DESC
 
         LIMIT 500
       `,
-      [`%${query}%`]
+      [`%${query}%`, conversationId]
     );
 
     res.json({
@@ -343,6 +433,12 @@ app.get("/api/messages/context/:id", async (req, res) => {
       });
     }
 
+    const conversationId = await requireConversationMember(
+      pool,
+      req.query.conversationId,
+      req.session.userId,
+    );
+
     const messageId =
       Number(req.params.id);
 
@@ -360,11 +456,12 @@ app.get("/api/messages/context/:id", async (req, res) => {
      */
     const targetResult = await pool.query(
       `
-        SELECT created_at
+        SELECT created_at, conversation_id
         FROM messages
         WHERE id = $1
+          AND conversation_id = $2
       `,
-      [messageId]
+      [messageId, conversationId]
     );
 
     if (targetResult.rowCount === 0) {
@@ -388,9 +485,11 @@ app.get("/api/messages/context/:id", async (req, res) => {
         WITH target AS (
           SELECT
             id,
-            created_at
+            created_at,
+            conversation_id
           FROM messages
           WHERE id = $1
+            AND conversation_id = $2
         ),
 
         surrounding AS (
@@ -421,8 +520,11 @@ app.get("/api/messages/context/:id", async (req, res) => {
             CROSS JOIN target t
 
             WHERE
+              m.conversation_id = $2
+              AND (
               m.created_at < t.created_at
               OR (m.created_at = t.created_at AND m.id < t.id)
+              )
 
             ORDER BY m.created_at DESC, m.id DESC
 
@@ -456,6 +558,7 @@ app.get("/api/messages/context/:id", async (req, res) => {
               ON reply_user.id = reply.user_id
 
             WHERE m.id = $1
+              AND m.conversation_id = $2
           )
 
           UNION ALL
@@ -487,8 +590,11 @@ app.get("/api/messages/context/:id", async (req, res) => {
             CROSS JOIN target t
 
             WHERE
+              m.conversation_id = $2
+              AND (
               m.created_at > t.created_at
               OR (m.created_at = t.created_at AND m.id > t.id)
+              )
 
             ORDER BY m.created_at ASC, m.id ASC
 
@@ -501,7 +607,7 @@ app.get("/api/messages/context/:id", async (req, res) => {
 
         ORDER BY created_at ASC
       `,
-      [messageId]
+      [messageId, conversationId]
     );
 
     res.json({
