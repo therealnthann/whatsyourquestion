@@ -32,7 +32,7 @@ function playMessageSound() {
     gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
 
     gain.gain.exponentialRampToValueAtTime(
-      0.12,
+      0.15,
       audioContext.currentTime + 0.01,
     );
 
