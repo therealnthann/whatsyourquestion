@@ -34,7 +34,9 @@ function upgradeCost(upgrade, count) {
 
 function renderTotals() {
   if (!internetQuestionsState) return;
-  const elapsed = Math.max(0, (Date.now() - new Date(internetQuestionsState.updatedAt).getTime()) / 1000);
+  const elapsed = internetQuestionsState.active
+    ? Math.max(0, (Date.now() - new Date(internetQuestionsState.updatedAt).getTime()) / 1000)
+    : 0;
   const total = Number(internetQuestionsState.questions) + Number(internetQuestionsState.questionsPerSecond) * elapsed;
   questionsTotal.textContent = formatQuestions(total);
   questionsRate.textContent = `${formatQuestions(internetQuestionsState.questionsPerSecond)} / sec`;
@@ -60,7 +62,10 @@ function renderUpgrades() {
       button.type = "button";
       button.dataset.upgradeId = upgrade.id;
       button.disabled = Number(internetQuestionsState?.questions || 0) < cost;
-      button.innerHTML = `<span class="internet-questions-upgrade-copy"><strong>${upgrade.name}</strong><small>+${formatQuestions(upgrade.power)} questions / sec</small></span><span class="internet-questions-upgrade-cost">${formatQuestions(cost)} <small>${count ? `x${count}` : ""}</small></span>`;
+      const effect = upgrade.type === "click"
+        ? `+${formatQuestions(upgrade.clickPower)} per click`
+        : `+${formatQuestions(upgrade.power)} questions / sec`;
+      button.innerHTML = `<span class="internet-questions-upgrade-copy"><strong>${upgrade.name}</strong><small>${effect}</small></span><span class="internet-questions-upgrade-cost">${formatQuestions(cost)} <small>${count ? `x${count}` : ""}</small></span>`;
       grid.append(button);
     });
     upgradeList.append(tierElement);
@@ -86,6 +91,11 @@ function bindGameSocket() {
     internetQuestionsState = state;
     renderGame();
   });
+  gameSocket.on("connect", () => {
+    if (!internetQuestionsScreen.classList.contains("hidden")) {
+      gameSocket.emit("internet-questions:enter");
+    }
+  });
 }
 
 async function openInternetQuestions() {
@@ -93,6 +103,7 @@ async function openInternetQuestions() {
   document.getElementById("chat-screen").classList.add("hidden");
   internetQuestionsScreen.classList.remove("hidden");
   bindGameSocket();
+  gameSocket?.emit("internet-questions:enter");
   try {
     const response = await fetch("/api/internet-questions");
     const data = await response.json();
@@ -106,6 +117,7 @@ async function openInternetQuestions() {
 }
 
 function closeInternetQuestions() {
+  gameSocket?.emit("internet-questions:leave");
   internetQuestionsScreen.classList.add("hidden");
   document.getElementById("chat-screen").classList.remove("hidden");
   if (gameAnimationFrame) cancelAnimationFrame(gameAnimationFrame);
@@ -114,7 +126,7 @@ function closeInternetQuestions() {
 function showFloatingQuestion() {
   const float = document.createElement("span");
   float.className = "question-float";
-  float.textContent = "+1";
+  float.textContent = `+${formatQuestions(internetQuestionsState?.clickPower || 1)}`;
   float.style.left = `${45 + Math.random() * 10}%`;
   floatContainer.append(float);
   float.addEventListener("animationend", () => float.remove());

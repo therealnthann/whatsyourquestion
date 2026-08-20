@@ -21,6 +21,7 @@ const {
   getGameState,
   clickGame,
   buyUpgrade,
+  setGamePresence,
 } = require("./game");
 const {
   getConversation,
@@ -717,7 +718,10 @@ app.use((error, req, res, next) => {
   res.status(500).json({ error: "Something went wrong." });
 });
 
-updateSocketUser = setupSocket(io, pool);
+updateSocketUser = setupSocket(io, pool, {
+  enter: (gamePool, socketId) => setGamePresence(gamePool, socketId, true),
+  leave: (gamePool, socketId) => setGamePresence(gamePool, socketId, false),
+});
 
 async function startServer() {
   try {
