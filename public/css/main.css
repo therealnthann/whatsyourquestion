@@ -26,6 +26,7 @@ body {
 
 body {
   min-height: 100vh;
+  min-height: 100svh;
 }
 
 
@@ -54,12 +55,17 @@ button {
 .app {
   width: 100%;
   min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
-  padding: 24px;
+  padding: max(24px, env(safe-area-inset-top))
+    max(24px, env(safe-area-inset-right))
+    max(24px, env(safe-area-inset-bottom))
+    max(24px, env(safe-area-inset-left));
 }
 
 
@@ -69,6 +75,7 @@ button {
 
 .screen {
   width: 100%;
+  min-width: 0;
 }
 
 .card {
@@ -242,7 +249,10 @@ input:focus-visible {
 
 @media (max-width: 600px) {
   .app {
-    padding: 12px;
+    padding: max(12px, env(safe-area-inset-top))
+      max(12px, env(safe-area-inset-right))
+      max(12px, env(safe-area-inset-bottom))
+      max(12px, env(safe-area-inset-left));
   }
 
   .card {
@@ -277,8 +287,9 @@ input:focus-visible {
 
 .settings-panel {
   width: min(520px, 100%);
+  min-width: 0;
 
-  max-height: min(720px, 90vh);
+  max-height: min(720px, calc(100dvh - 32px));
 
   overflow-y: auto;
 
@@ -586,9 +597,12 @@ input:focus-visible {
 }
 
 .account-value {
+  min-width: 0;
+
   font-weight: 600;
 
   font-size: 0.85rem;
+  overflow-wrap: anywhere;
 }
 
 .settings-button {
@@ -725,7 +739,7 @@ input:focus-visible {
   .settings-panel {
     width: 100%;
 
-    max-height: 90vh;
+    max-height: 90dvh;
 
     border-radius:
       20px 20px 0 0;
