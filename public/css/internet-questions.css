@@ -1,0 +1,291 @@
+.internet-questions-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  overflow-y: auto;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.internet-questions-shell {
+  width: min(980px, 100%);
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 28px max(24px, env(safe-area-inset-right)) 80px max(24px, env(safe-area-inset-left));
+}
+
+.internet-questions-back {
+  padding: 7px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+  transition: color var(--transition), transform var(--transition);
+}
+
+.internet-questions-back:hover {
+  color: var(--text);
+  transform: translateX(-2px);
+}
+
+.internet-questions-header {
+  max-width: 600px;
+  margin: 13vh auto 42px;
+  text-align: center;
+}
+
+.internet-questions-kicker {
+  margin: 0 0 12px;
+  color: var(--accent-strong);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.internet-questions-header h1 {
+  margin: 0;
+  font-size: clamp(2.2rem, 6vw, 4.6rem);
+  font-weight: 650;
+  letter-spacing: -0.04em;
+}
+
+.internet-questions-header p:last-child {
+  margin: 16px auto 0;
+  color: var(--text-soft);
+  line-height: 1.6;
+}
+
+.internet-questions-totals {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: min(620px, 100%);
+  margin: 0 auto 36px;
+  padding: 22px 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.internet-questions-totals > div + div {
+  border-left: 1px solid var(--border);
+}
+
+.internet-questions-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-soft);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.internet-questions-totals strong {
+  display: block;
+  font-size: clamp(1.65rem, 4vw, 2.5rem);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+
+.internet-questions-action-area {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  min-height: 108px;
+}
+
+.ask-question-button {
+  min-width: 170px;
+  padding: 13px 22px;
+  border: 1px solid color-mix(in srgb, var(--accent-strong) 25%, var(--border));
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 20%, transparent);
+  font-weight: 650;
+  transition: transform var(--transition), box-shadow var(--transition), background var(--transition);
+}
+
+.ask-question-button:hover {
+  background: var(--accent-soft);
+  box-shadow: 0 11px 26px color-mix(in srgb, var(--accent) 28%, transparent);
+  transform: translateY(-2px);
+}
+
+.ask-question-button:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.internet-questions-floats {
+  position: absolute;
+  top: 0;
+  width: 170px;
+  height: 90px;
+  pointer-events: none;
+}
+
+.question-float {
+  position: absolute;
+  color: var(--accent-strong);
+  font-size: 0.9rem;
+  font-weight: 700;
+  animation: question-float 850ms ease-out forwards;
+}
+
+@keyframes question-float {
+  from { opacity: 0; transform: translate(-50%, 18px); }
+  20% { opacity: 1; }
+  to { opacity: 0; transform: translate(-50%, -54px); }
+}
+
+.internet-questions-status {
+  min-height: 18px;
+  margin: 12px 0 0;
+  color: var(--danger);
+  font-size: 0.78rem;
+}
+
+.internet-questions-upgrades {
+  margin-top: 32px;
+}
+
+.internet-questions-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.internet-questions-section-heading h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 650;
+}
+
+.internet-questions-section-heading span {
+  color: var(--text-soft);
+  font-size: 0.78rem;
+}
+
+.internet-questions-tier {
+  margin-top: 28px;
+}
+
+.internet-questions-tier h3 {
+  margin: 0 0 10px;
+  color: var(--text-soft);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.internet-questions-upgrade-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.internet-questions-upgrade {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  transition: border var(--transition), box-shadow var(--transition), transform var(--transition), opacity var(--transition);
+}
+
+.internet-questions-upgrade:not(:disabled):hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+.internet-questions-upgrade:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.internet-questions-upgrade-copy,
+.internet-questions-upgrade-cost {
+  min-width: 0;
+}
+
+.internet-questions-upgrade-copy strong,
+.internet-questions-upgrade-copy small,
+.internet-questions-upgrade-cost,
+.internet-questions-upgrade-cost small {
+  display: block;
+}
+
+.internet-questions-upgrade-copy strong {
+  overflow: hidden;
+  font-size: 0.88rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.internet-questions-upgrade-copy small,
+.internet-questions-upgrade-cost small {
+  margin-top: 5px;
+  color: var(--text-soft);
+  font-size: 0.72rem;
+}
+
+.internet-questions-upgrade-cost {
+  flex: 0 0 auto;
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.internet-questions-easter-egg {
+  display: block;
+  width: 19px;
+  height: 19px;
+  margin: 24px auto 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-soft);
+  font-size: 0.68rem;
+  opacity: 0.42;
+  transition: opacity var(--transition), background var(--transition);
+}
+
+.internet-questions-easter-egg:hover,
+.internet-questions-easter-egg:focus-visible {
+  background: var(--accent-soft);
+  opacity: 1;
+}
+
+@media (max-width: 620px) {
+  .internet-questions-shell {
+    padding-top: 18px;
+    padding-bottom: 52px;
+  }
+
+  .internet-questions-header {
+    margin: 9vh auto 30px;
+  }
+
+  .internet-questions-totals {
+    padding: 18px 12px;
+  }
+
+  .internet-questions-upgrade-grid {
+    grid-template-columns: 1fr;
+  }
+}

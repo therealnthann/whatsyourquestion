@@ -71,6 +71,21 @@ async function initializeDatabase() {
       ON sessions(expire);
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS internet_questions (
+      id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+      questions NUMERIC(100, 0) NOT NULL DEFAULT 0,
+      questions_per_second NUMERIC(100, 4) NOT NULL DEFAULT 0,
+      click_power NUMERIC(100, 4) NOT NULL DEFAULT 1,
+      upgrades JSONB NOT NULL DEFAULT '{}'::jsonb,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    INSERT INTO internet_questions (id)
+    VALUES (1)
+    ON CONFLICT (id) DO NOTHING;
+  `);
+
   // Existing database migration:
   // usernames were originally required, but first-time
   // access codes now need to be able to have no username yet.
