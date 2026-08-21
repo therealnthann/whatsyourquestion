@@ -11,7 +11,6 @@
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="/css/chat.css">
   <link rel="stylesheet" href="/css/themes.css">
-	<link rel="stylesheet" href="/css/internet-questions.css">
 </head>
 
 <body>
@@ -581,70 +580,11 @@
 					ID: —
 				</div>
 
-				<button
-					id="internet-questions-easter-egg"
-					class="internet-questions-easter-egg"
-					type="button"
-					aria-label="Open Internet Questions"
-					title="?"
-				>
-					?
-				</button>
-
 			</div>
 
 		</section>
 
 	</div>
-
-	<!-- ==============================
-			 INTERNET QUESTIONS
-			 ============================== -->
-
-	<section
-		id="internet-questions-screen"
-		class="internet-questions-screen hidden"
-		aria-labelledby="internet-questions-title"
-	>
-		<div class="internet-questions-shell">
-			<button id="internet-questions-back" class="internet-questions-back" type="button">
-				<span aria-hidden="true">←</span> Back
-			</button>
-
-			<header class="internet-questions-header">
-				<p class="internet-questions-kicker">A shared experiment</p>
-				<h1 id="internet-questions-title">Internet Questions</h1>
-				<p>Every question asked here makes the whole internet a little more curious.</p>
-			</header>
-
-			<section class="internet-questions-totals" aria-label="Global totals">
-				<div>
-					<span class="internet-questions-label">Global Questions</span>
-					<strong id="internet-questions-total">0</strong>
-				</div>
-				<div>
-					<span class="internet-questions-label">Questions / second</span>
-					<strong id="internet-questions-rate">0</strong>
-				</div>
-			</section>
-
-			<div class="internet-questions-action-area">
-				<button id="ask-question-button" class="ask-question-button" type="button">
-					Ask a Question
-				</button>
-				<div id="internet-questions-floats" class="internet-questions-floats" aria-hidden="true"></div>
-				<p id="internet-questions-status" class="internet-questions-status" aria-live="polite"></p>
-			</div>
-
-			<section class="internet-questions-upgrades" aria-labelledby="internet-questions-upgrades-title">
-				<div class="internet-questions-section-heading">
-					<h2 id="internet-questions-upgrades-title">Build the internet</h2>
-					<span>Shared by everyone</span>
-				</div>
-				<div id="internet-questions-upgrade-list"></div>
-			</section>
-		</div>
-	</section>
 
 
 	<!-- ==============================
@@ -860,7 +800,6 @@
 
   <!-- Settings / themes -->
   <script src="/js/settings.js"></script>
-	<script src="/js/internet-questions.js"></script>
 
 </body>
 </html>

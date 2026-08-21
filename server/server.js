@@ -17,12 +17,6 @@ const {
 } = require("./auth");
 const setupSocket = require("./socket");
 const {
-  upgrades,
-  getGameState,
-  clickGame,
-  buyUpgrade,
-} = require("./game");
-const {
   getConversation,
   requireConversationMember,
   getUserConversations,
@@ -77,14 +71,6 @@ const searchLimiter = rateLimit({
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { error: "Too many searches. Try again later." },
-});
-
-const gameLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  limit: 900,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  message: { error: "Too many game actions. Try again shortly." },
 });
 
 const sessionMiddleware = session({
@@ -285,48 +271,6 @@ app.get("/api/me", async (req, res) => {
     res.status(500).json({
       error: "Something went wrong.",
     });
-  }
-});
-
-app.get("/api/internet-questions", async (req, res) => {
-  try {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: "You are not logged in." });
-    }
-
-    res.json({ state: await getGameState(pool), upgrades });
-  } catch (error) {
-    console.error("Game state error:", error);
-    res.status(500).json({ error: "Could not load Internet Questions." });
-  }
-});
-
-app.post("/api/internet-questions/click", gameLimiter, async (req, res) => {
-  try {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: "You are not logged in." });
-    }
-
-    const result = await clickGame(pool);
-    io.emit("internet-questions:state", result.state);
-    res.json(result);
-  } catch (error) {
-    console.error("Game click error:", error);
-    res.status(500).json({ error: "Could not ask a question." });
-  }
-});
-
-app.post("/api/internet-questions/upgrades/:id", gameLimiter, async (req, res) => {
-  try {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: "You are not logged in." });
-    }
-
-    const result = await buyUpgrade(pool, req.params.id);
-    io.emit("internet-questions:state", result.state);
-    res.json(result);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
   }
 });
 
