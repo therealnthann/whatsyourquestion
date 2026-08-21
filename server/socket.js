@@ -64,7 +64,7 @@ function sendSocketError(socket, error) {
   socket.emit("chat:error", { error });
 }
 
-function setupSocket(io, pool, gamePresence) {
+function setupSocket(io, pool) {
   const onlineUsers = new Map();
 
   function updateSocketUser(userId, username) {
@@ -374,29 +374,7 @@ function setupSocket(io, pool, gamePresence) {
       );
     });
 
-    socket.on("internet-questions:enter", async () => {
-      try {
-        await gamePresence?.enter(pool, socket.id);
-      } catch (error) {
-        console.error("Game presence error:", error);
-      }
-    });
-
-    socket.on("internet-questions:leave", async () => {
-      try {
-        await gamePresence?.leave(pool, socket.id);
-      } catch (error) {
-        console.error("Game presence error:", error);
-      }
-    });
-
-    socket.on("disconnect", async () => {
-      try {
-        await gamePresence?.leave(pool, socket.id);
-      } catch (error) {
-        console.error("Game presence error:", error);
-      }
-
+    socket.on("disconnect", () => {
       const userInfo = onlineUsers.get(userId);
       if (!userInfo) {
         return;
